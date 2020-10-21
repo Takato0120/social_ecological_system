@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block page %}
+<h2>Ostrom Lab Participant Database Frequently Asked Questions</h2>
+<div class='panel-group' id='accordion'>
+    {% for faq_entry in faq_entries %}
+    <div class='panel panel-default'>
+        <div class='panel-heading'>
+            <a class='panel-title' data-toggle='collapse' data-parent='#accordion' href='#q{{forloop.counter}}'>
+                {{ faq_entry.question }}
+            </a>
+        </div>
+        <div id='q{{forloop.counter}}' class='panel-collapse collapse'>
+            <div class='panel-body'>
+                {{ faq_entry.answer|safe }}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block javascript %}
+{{ block.super }}
+
+<script>
+$(function() {
+    var anchor = window.location.hash;
+    if (anchor) {
+        $(anchor).collapse('show');
+    }
+});
+</script>
+{% endblock javascript %}

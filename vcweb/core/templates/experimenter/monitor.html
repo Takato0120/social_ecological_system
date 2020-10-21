@@ -1,0 +1,453 @@
+{% extends "experimenter/base.html" %}
+{% block title %}
+{{ experiment.experiment_metadata }} #{{ experiment.pk }}
+{% endblock %}
+{% block page %}
+<h3><span data-bind='if: isArchived'><span style='padding: 8px; -webkit-border-radius: 3px; border-radius: 3px; -moz-border-radius: 3px; border: 1px solid #fbeed5;' class='alert-success'><i class='fa fa-floppy-o'></i> ARCHIVED</span> </span>{{experiment}}</h3>
+<div class='row'>
+    <div class='col-md-6'>
+        <div class='alert alert-white' data-bind='visible: isActive'>
+            <h4>ROUND MANAGEMENT</h4>
+            <a class='btn btn-success' data-bind='click: confirmExperimentControllerAction.bind($data, true)' data-action='advance_to_next_round' data-content='Advances to and starts the next round.'><i class='fa fa-step-forward'></i> next round</a>
+            {% comment %}
+            DISABLED
+            <a class='btn btn-success' data-bind="visible: ! isRoundInProgress(), click: confirmExperimentControllerAction.bind($data, true)" data-action='start_round' data-content='Starts the round.'><i class='fa fa-play'></i> start</a>
+            <a class='btn btn-primary' data-bind='click: updateParticipants' data-content='Requests all connected participants to update themselves.' ><i class='fa fa-exchange'></i> update participants</a>
+            <a class='btn btn-danger' data-bind='click: confirmExperimentControllerAction.bind($data, false)' data-action='deactivate' data-content='Deactivates this experiment and disables participant logins.'><i class='fa fa-power-off'></i> deactivate</a>
+            {% endcomment %}
+            <a class='btn btn-danger' data-bind="click: confirmExperimentControllerAction.bind($data, true)"
+                data-action='restart' data-content='Restart the experiment from the beginning, clearing all group and participant data and returning to the first round.' data-original-title='Reset Experiment'>
+                <i class='fa fa-arrow-circle-up'></i> restart experiment</a>
+            <a class='btn btn-primary' href="{% url 'core:show_experiment_configuration' experiment.experiment_configuration.pk %}"> view experiment configuration </a>
+        </div>
+        <div data-bind="ifnot: isActive() || isArchived()">
+            <div data-bind="ifnot: hasParticipants">
+                <div class='alert alert-error alert-block'>
+                    <h4>No participants</h4>
+                    <i class='fa fa-warning'></i><a href='{{experiment.experimenter_url}}/register-email-list'>Register bulk email addresses</a> or
+                    <a href='{{experiment.experimenter_url}}/register-test-participants'>add test participants</a>?
+                </div>
+            </div>
+            <div data-bind="if: hasParticipants">
+                <div class='alert alert-warning'>
+                    <h4>Inactive Experiment</h4>
+                    <p>
+                        There are <span data-bind='text:participantCount' class='badge badge-info'></span> registered participants.
+                        Activate the experiment whenever you are ready to collect data.
+                    </p>
+                    <p data-bind='if: allRoundData.length > 0' class='text-danger'>NOTE: this experiment has <b>existing experiment data that will be deleted upon activation</b>.</p>
+                    <a data-content='Activates and starts this experiment, assigning participants to groups.'
+                        class='btn btn-success' data-bind='click: confirmExperimentControllerAction.bind($data, false)' data-action='activate'><i class='fa fa-power-off'></i> activate</a>
+                </div>
+            </div>
+        </div>
+        <div class='well experimenter-round-status'>
+            <h4>ROUND STATUS</h4>
+            <b class='text-info' data-bind='text:roundSequenceLabel'></b><br>
+            <span data-bind='text:roundStatusLabel'></span><br>
+            Round started on: <span data-bind='text:currentRoundStartTime'></span><br>
+            Time remaining: <span data-bind='text: timeRemainingText'></span><br>
+            <form id="experimenterNotesForm" role='form'>
+                {% csrf_token %}
+                <div class='form-group'>
+                    <textarea style='resize: vertical' class='input-block-level form-control' id='experimenterNotes' data-bind='text: experimenterNotes' placeholder="Experimenter notes to be stored with this round's data" rows="3"></textarea>
+                </div>
+                <button id='submitExperimenterNotesButton' class='btn btn-success' type='submit' data-bind='click: saveExperimenterNotes.bind(event, "")'>Save</button>
+            </form>
+            <br>
+            <div class='alert alert-warning alert-block'>
+                <h4><i class='fa fa-arrow-circle-o-down'></i> Download Data</h4>
+                <ul class='list-inline'>
+                    <li><a href='download/csv'><i class='fa fa-file-text'></i> csv</a></li>
+                    <li><a href='download/xls'><i class='fa fa-file-excel-o'></i> excel</a></li>
+                </ul>
+                {% comment %}
+                FIXME: disabled for the time being
+                <h4><i class='icon-download-alt'></i>Download Configuration Files</h4>
+                <ul class='inline'>
+                    <li><a href='export/configuration.xml'><i class='icon-cog'></i> xml</a></li>
+                    <li><a href='export/configuration.json'><i class='icon-pencil'></i> json</a></li>
+                </ul>
+                {% endcomment %}
+                {% if not user.experimenter.is_demo_experimenter %}
+                <div style="padding-top: 5px;" data-bind='ifnot: isArchived'>
+                    <a class='btn btn-danger' data-bind='click: confirmExperimentControllerAction.bind($data, false)' data-action='complete' data-content='Mark this experiment as completed and archive it.'>
+                        <i class='fa fa-floppy-o'></i> archive
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        <div class='panel-group'>
+            <div class="panel panel-default">
+                <div class='panel-heading'>
+                    <a data-toggle='collapse' data-parent='#registeredParticipantsAccordion' href='#registeredParticipants'>
+                        <span id='participantCountId' data-bind='text:participantCount' class='badge badge-info'></span>
+                        registered participants
+                    </a>
+                    <a href='download-participants'><i class='fa fa-users'></i> download participant sheet</a>
+                </div>
+                <div id='registeredParticipants' class='panel-collapse collapse'>
+                    {% comment %} display registered participants in a flat list if groups haven't been formed yet {% endcomment %}
+                    <!-- ko ifnot: groups -->
+                    <div class='panel-default panel-body'>
+                        <table class='table table-compact table-striped table-bordered'>
+                            <thead><tr><th>Participant</th><th>Email</th></tr></thead>
+                            <tbody data-bind='foreach: participants'>
+                            <tr><td data-bind='text: full_name'></td><td data-bind='text: email'></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- /ko -->
+
+                    <!-- ko if: groupClusters().length == 0 -->
+                    <div class='panel-default panel-body'> 
+                        <div data-bind='template: { name: "group-template", foreach: groups }'></div>
+                    </div>
+                    <!-- /ko -->
+
+                    <!-- ko foreach: groupClusters -->
+                    <div class='panel-default panel-body'>
+                        <span data-bind="text: name"></span>
+                        <div class="callout callout-info">
+                            <div data-bind='template: { name: "group-template", foreach: groups }'></div>
+                        </div>
+                    </div>
+                    <!-- /ko -->
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class='panel-group' style='height: 310px; overflow: auto;' class='alert alert-warning'>
+            <div class='panel panel-default'>
+                <div class='panel-heading'>
+                    <h4 class='panel-title'>Experiment Log</h4>
+                </div>
+            </div>
+            <div class='scrollable-messages'>
+                <div class='alert alert-warning panel-body' data-bind='foreach: messages'>
+                    <div>
+                        <span data-bind='text: $data'></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class='panel-group'>
+            <div class="panel panel-default">
+                <div class='panel-heading'>
+                    <h4 class="panel-title">Chat Messages</h4>
+                </div>
+            </div>
+            <div id='experiment-chat-messages' class='scrollable-messages'>
+                <div class='alert alert-warning panel-body' data-bind='foreach: chatMessages'>
+                    <div>
+                        <span data-bind='text: participant_number'></span>(<span data-bind='text: group'></span>): <strong data-bind='text: value'></strong>
+                        <span class='pull-right' data-bind='text: short_date_created'></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<h3>Experiment Data</h3>
+<div id='round-data-accordion' data-bind='foreach: allRoundData'>
+    <div class='panel-group'>
+        <div class="panel panel-default">
+            <div class='panel-heading'>
+                <h4 class="panel-title">
+                    <a class='accordion-toggle' data-toggle='collapse' data-parent='#round-data-accordion'
+                        data-bind='click: $root.loadRoundData, attr: { href: "#" + roundDataId() }'>
+                    <span class='label label-success' data-bind='text: roundType'></span>Round <span data-bind='text: roundNumber'></span></a>
+                </h4>
+            </div>
+        </div>
+        <div data-bind="attr: { id: roundDataId }" class="accordion-body collapse">
+        <div class="accordion-inner">
+            <h4>Experimenter Notes</h4>
+            <form role='form' data-bind='submit: $root.saveExperimenterNotes.bind(event, pk())'>
+                {% csrf_token %}
+                <div class='form-group'>
+                    <textarea style='resize: vertical' class='input-block-level form-control' data-bind='text: experimenterNotes, attr: {id: "experimenterNotes"+pk()}' placeholder="Experimenter notes to be stored with this round's data" rows="3"></textarea>
+                </div>
+                <button data-bind='attr: {id: "submitExperimenterNotesButton"+pk()}' class='btn btn-success' type='submit'>Save</button>
+            </form>
+            <h4>Group data</h4>
+            <table class="table table-striped table-bordered">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Group</th>
+                        <th>Parameter</th>
+                        <th>Value</th>
+                        <th>Date created</th>
+                    </tr>
+                </thead>
+                <tbody data-bind="foreach: groupDataValues">
+                    <tr>
+                        <td data-bind='text: pk'></td>
+                        <td data-bind="text: group"></td>
+                        <td data-bind="text: parameter_label"></td>
+                        <td data-bind="text: value"></td>
+                        <td data-bind="text: date_created"></td>
+                    </tr>
+                </tbody>
+            </table>
+            <h4>Participant Data</h4>
+            <table class="table table-striped table-bordered">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Participant</th>
+                        <th>Parameter</th>
+                        <th>Value</th>
+                        <th>Date Created</th>
+                    </tr>
+                </thead>
+                <tbody data-bind="foreach: participantDataValues">
+                    <tr>
+                        <td data-bind='text: pk'></td>
+                        <td><span data-bind="text: participant_name"></span> (<span data-bind="text: participant_email"></span>)</td>
+                        <td data-bind="text: parameter_label"></td>
+                        <td data-bind="text: value"></td>
+                        <td data-bind="text: date_created"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    </div>
+</div>
+<div id="progress-modal" class="modal fade" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                 <h3>Updating experiment data</h3>
+            </div>
+            <div class="modal-body">
+                <div class="progress progress-striped active">
+                    <div id="progress-bar" class="progress-bar progress-bar-info" role="progressbar" style="width: 100%;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock page %}
+{% block javascript %}
+{{ block.super }}
+{% include "includes/experimenter.events.html" %}
+{% include "includes/sockjs.html" %}
+
+<script type='text/html' id='group-template'>
+    <table class='table table-compact table-striped table-bordered'>
+        <caption class='text-info'><b><span data-bind='text: name'></span> (PK: <span data-bind='text: pk'></span>)</b></caption>
+        <thead><tr><th>PGR PK</th><th>Participant</th><th>Email</th></tr></thead>
+        <tbody data-bind='foreach: participant_group_relationships'>
+            <tr>
+                <td data-bind='text: pk'></td>
+                <td data-bind='text: participant_number'></td>
+                <td data-bind='text: email'></td>
+            </tr>
+        </tbody>
+    </table>
+</script>
+<script type='text/javascript'>
+    var experimentModelJson = $.parseJSON("{{ experimentModelJson|escapejs }}");
+    console.log(experimentModelJson)
+    $(function() {
+        var ALLOWED_ACTIONS = ["activate", "advance_to_next_round", "restart", "deactivate", "complete"];
+        function ExperimentModel(experimentModelJson) {
+            var self = this;
+            var model = ko.mapping.fromJS(experimentModelJson);
+            model.currentInterval = ko.observable();
+            model.setCurrentInterval = function(intervalId) {
+                model.clearCurrentInterval();
+                model.currentInterval(intervalId);
+            };
+            model.clearCurrentInterval = function() {
+                if (model.currentInterval()) {
+                    clearInterval(model.currentInterval());
+                    model.currentInterval(undefined);
+                }
+            };
+            model.timeRemainingText = ko.computed(function() {
+                var tr = model.timeRemaining();
+                return (tr < 0) ? "Unlimited" : tr + " s";
+            });
+            model.tick = function() {
+                model.timeRemaining(model.timeRemaining() - 1);
+                if (model.timeRemaining() < 0) {
+                    model.addMessage("Round time has expired, ready to move on to next round.");
+                    model.clearCurrentInterval();
+                }
+            };
+            model.saveExperimenterNotes = function(roundPk, evt) {
+                var notes = $('#experimenterNotes'+roundPk).val();
+                $('#submitExperimenterNotesButton'+roundPk).html("Submitting..");
+                var formData = { experiment_id: {{ experiment.pk }}, notes: notes };
+                if(roundPk) {formData["round_data_id"] = roundPk;}
+
+                $.post("/api/experimenter/save-notes", formData)
+                 .done(function() {
+                     model.addMessage("Saved experimenter notes: " + notes);
+                 })
+                 .fail(function(response) {
+                     model.addMessage(response.message);
+                 })
+                 .always(function() {
+                    setTimeout(function() { $('#submitExperimenterNotesButton'+roundPk).html("Save"); }, 1000);
+                 });
+            };
+            model.loadRoundData = function(localModel) {
+                console.debug("loading round data with pk: " + localModel.pk());
+                console.debug(localModel);
+                if (localModel.participantDataValues().length > 0 || localModel.groupDataValues() > 0) {
+                    console.debug("assuming round data has already been loaded");
+                    return;
+                }
+                $.get('{% url "core:get_round_data" %}', { pk: localModel.pk() })
+                 .done(function(response) {
+                     localModel.groupDataValues(response.groupDataValues);
+                     localModel.participantDataValues(response.participantDataValues);
+                     console.log(response.groupDataValues);
+                 })
+                 .fail(function(response) {
+                     console.debug("unable to get round data for " + localModel.pk());
+                 });
+            };
+            model.update = function(localModel, evt) {
+                $('#progress-modal').modal('show');
+                $.get("/api/experimenter/experiment-model", { pk: {{ experiment.pk }} })
+                 .done(function(data) {
+                     ko.mapping.fromJS(data, model);
+                     console.debug("time remaining: " + model.timeRemaining());
+                     model.startTimer();
+                     $('#progress-modal').modal('hide');
+                 })
+                 .fail(function(response) {
+                     console.debug("unable to get experiment model for " + {{ experiment.pk }});
+                 });
+            };
+            model.startTimer = function() {
+                if (model.timeRemaining() > 0) {
+                    model.setCurrentInterval( setInterval( model.tick, 1000 ) );
+                }
+            };
+            model.confirmExperimentControllerAction = function(shouldUpdateParticipants, localModel, evt) {
+                element = evt.target;
+                if ($(element).hasClass('disabled')) {
+                    console.debug("aborting disabled action: " + element);
+                    return false;
+                }
+                confirmAction(element, function(confirmed, action) {
+                    if ($.inArray(action, ALLOWED_ACTIONS) === -1) {
+                        console.debug("invalid action: " + action);
+                        return false;
+                    }
+                    $('#progress-modal').modal('show');
+                    $.post("/api/experiment/update", { experiment_id: {{ experiment.pk }}, should_update_participants: shouldUpdateParticipants, action: action })
+                     .done(function(response) {
+                        if (response.success) {
+                            ko.mapping.fromJS(response.experiment, model);
+                            model.startTimer();
+                            $('#progress-modal').modal('hide');
+                        }
+                     })
+                     .fail(function(response) {
+                         console.debug("Unable to perform experiment controller action: " + response.message);
+                     });
+                });
+            };
+            model.startOrStopExperimentAction = ko.computed(function() {
+                    return model.isRoundInProgress() ? "stop_round" : "start_round";
+                    });
+            model.startOrStopExperimentActionText = ko.computed(function() {
+                    return model.isRoundInProgress() ? "stop" : "start";
+                    });
+            // FIXME: hacky and unconvinced that it'll provide true thread safety.  Revisit.
+            model.isCheckingParticipants = ko.observable(false);
+            model.checkAllParticipantsReady = function() {
+                if (model.isCheckingParticipants()) {
+                    console.debug("already checking participants, aborting");
+                    return;
+                }
+                model.isCheckingParticipants(true);
+                console.debug("checking if all participants are ready");
+                $.get('/api/experiment/{{experiment.pk}}/check-ready-participants', function(response) {
+                    if (response.all_participants_ready) {
+                        model.addMessage("All participants are ready, ready to advance to the next round");
+                        // FIXME: need to ensure that this can only get called once, otherwise we run the risk of
+                        // invoking advance to next round twice.  See https://bitbucket.org/virtualcommons/vcweb/issue/113/
+                    }
+                });
+                model.isCheckingParticipants(false);
+            };
+            model.updateParticipants = function(m, evt) {
+                confirmAction(evt.target, function(confirmed, action) {
+                    if (confirmed) {
+                        console.debug("sending update event");
+                        $.post("/experiment/{{ experiment.pk }}/update-participants")
+                         .done(function(response) {
+                            if (!response.success) {
+                                model.addMessage("Something went wrong. Please try again.")
+                            }
+                        })
+                        .fail(function(response) {
+                            model.addMessage("Unable to perform experiment controller action: " + response.message);
+                        });
+                    }
+                });
+            };
+            model.addMessage = function(message) {
+                model.messages.unshift(message);
+            };
+            model.hasParticipants = ko.computed(function() {
+                return model.participantCount() > 0;
+            });
+            return model;
+        }
+        function confirmAction(element, callback) {
+            var self = $(element);
+            var description = self.attr("data-content");
+            var action = self.attr("data-action");
+            if (self.hasClass('disabled')) {
+                console.debug("disabled action " + action + " - ignoring");
+                return false;
+            }
+            bootbox.confirm(description + "  Continue?", function(confirmed) {
+                if (confirmed && callback) {
+                    callback(confirmed, action);
+                }
+            });
+        }
+        function initialize(experimentModelJson) {
+            var experimentModel = new ExperimentModel(experimentModelJson);
+            ko.applyBindings(experimentModel);
+            // Start the Timer
+            experimentModel.startTimer();
+            // establish sockjs websocket connection
+            connect("/experimenter").onmessage = function(message) {
+                experiment_event = $.parseJSON(message.data);
+                switch (experiment_event.event_type) {
+                    case 'update':
+                        break;
+                    case 'chat':
+                        experimentModel.chatMessages.unshift(experiment_event);
+                        break;
+                    case 'participant_ready':
+                        experimentModel.checkAllParticipantsReady();
+                        // explicit fall through
+                    case 'info':
+                    default:
+                        experimentModel.addMessage(experiment_event.message);
+                        break;
+                }
+            };
+            return experimentModel;
+        }
+        $('[data-content]').popover({placement: 'top', trigger: 'hover', container: 'body'});
+        // initialize experiment model JSON from experiment model
+        initialize(experimentModelJson);
+    });
+</script>
+{% endblock %}

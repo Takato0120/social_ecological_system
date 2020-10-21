@@ -1,0 +1,6 @@
+-r requirements.txt
+# development dependencies
+django-sslserver
+django-debug-toolbar
+ipython
+python-coveralls

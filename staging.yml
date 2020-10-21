@@ -1,0 +1,32 @@
+version: '3'
+
+services:
+  django:
+    build:
+      context: ./
+      args:
+        DJANGO_RUNIT_SCRIPT: "./deploy/runit/prod.sh"
+    image: virtualcommons/vcweb/prod:latest
+    restart: always
+    environment:
+      DJANGO_SETTINGS_MODULE: 'vcweb.settings.staging'
+    volumes:
+      - ./docker/shared:/shared
+      - sockets:/shared/sockets
+  nginx:
+    image: nginx:latest
+    restart: always
+    volumes:
+      - ./deploy/nginx/nginx-staging.conf:/etc/nginx/nginx.conf
+      - ./deploy/nginx/uwsgi_params:/etc/nginx/uwsgi_params
+      - ./docker/shared:/shared
+      - sockets:/shared/sockets
+    command: ["nginx", "-g", "daemon off;"]
+    ports:
+      - "127.0.0.1:8001:80"
+    depends_on:
+      - django
+
+volumes:
+  sockets:
+    driver: local

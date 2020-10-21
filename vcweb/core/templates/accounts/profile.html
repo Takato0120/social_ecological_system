@@ -1,0 +1,76 @@
+{% extends "forms/base.html" %}
+
+{% load static %}
+
+{% block title %}Your Account{% endblock %}
+
+{% block form-title %}
+    <h3>{{ request.user.get_full_name }}</h3>
+    <div id="error-messages"></div>
+{% endblock form-title %}
+
+{% block form %}
+{% include "includes/bootstrap-form.html" %}
+    <div class="form-group">
+    <div class="col-md-offset-3 col-md-9">
+        <button type='submit' id='submitForm' class='btn btn-primary'>Save</button>
+    </div>
+  </div>
+{% endblock %}
+
+{% block javascript %}
+    {{  block.super }}
+    {{ form.media }}
+        <script type='text/javascript'>
+        $(document).ready(function() {
+            $("#vcweb-form :input:visible:enabled:first").focus();
+
+            $('#vcweb-form').validate({
+                rules: {
+                    major: {
+                        required: "#id_can_receive_invitations:checked"
+                    },
+                    class_status: {
+                        required: "#id_can_receive_invitations:checked"
+                    },
+                    gender: {
+                        required: "#id_can_receive_invitations:checked"
+                    },
+                    email: {
+                        required: true,
+                        email: true,
+                        remote: {
+                            url: "/accounts/check-email",
+                            type: "get",
+                            data: {
+                                email: function() {
+                                    return $( "#id_email" ).val();
+                                }
+                            }
+                        }
+                    }
+                },
+                messages: {
+                    class_status: "Please enter your class status",
+                    gender: "Please enter your gender",
+                    email: {
+                        remote: 'This email is already registered in our system. <a href="https://commons.asu.edu/accounts/password/reset">Request a new password?</a>'
+                    }
+                },
+                submitHandler: function(form) {
+                    var formData = $('#vcweb-form').serialize();
+                    console.debug("submitting form");
+                    $.post("/accounts/profile/update", formData,
+                         function(data) {
+                            if (data.success) {
+                                $("#error-messages").html('<div class="alert alert-success">Your profile has been updated. Thank you for registering!</strong></div>');
+                            } else {
+                                $("#error-messages").html('<div class="alert alert-danger"><strong>'+data.message+'</strong></div>');
+                            }
+                        });
+
+                }
+            });
+        });
+    </script>
+    {%  endblock javascript %}

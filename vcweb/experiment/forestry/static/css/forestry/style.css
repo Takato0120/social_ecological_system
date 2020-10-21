@@ -1,0 +1,81 @@
+.chat-sidebar {
+    background-color: #f5f5f5;
+    border: 1px solid #e3e3e3;
+    padding: 0px 0px 0px 0px;
+    margin: 0px;
+}
+.chat-messages {
+    padding: 5px;
+}
+#chat-div {
+    overflow: auto;
+    height: 700px;
+}
+#chatMessage {
+
+}
+
+.forestry-status-dashboard {
+    height: 95px;
+    width: 140px;
+    padding: 8px 8px 8px 8px;
+}
+
+.forestry-status-dashboard p {
+    padding-top: 15px;
+    font-size: 2em;
+}
+.forestry-status-dashboard h4 {
+    border-bottom: 1px solid #ccc;
+}
+.zero-harvest-decision {
+    margin: 0 0 0 -5px;
+    width: 40px;
+    height: 40px;
+    background: url('../../images/forestry/zero-trees-inactive.png') no-repeat;
+}
+.zero-harvest-decision.selected {
+    background: url('../../images/forestry/zero-trees-active.png') no-repeat !important;
+}
+.zero-harvest-decision:hover {
+    background: url('../../images/forestry/zero-trees-hover.png') no-repeat;
+}
+.harvest-decision-tree {
+    padding: 0 0 0 0;
+    margin: 0 0 0 -5px;
+    width: 40px;
+    height: 40px;
+    background: url('../../images/forestry/tree-inactive.png') no-repeat;
+}
+.harvest-decision-tree.selected {
+    background: url('../../images/forestry/tree-active.png') no-repeat !important;
+}
+.harvest-decision-tree:hover {
+    background: url('../../images/forestry/tree-hover.png') no-repeat;
+}
+.harvest-decision-tree-div {
+    cursor: pointer;
+    padding: 1px 1px 1px 8px;
+    margin: 1px 1px 1px 1px;
+}
+td.harvest-decision-tree-td {
+    padding: 0px;
+    margin: 0px;
+}
+.submit-decision-button {
+    margin-top: -25px;
+    margin-left: 10px;
+}
+col.current-player {
+    background-color: #ffb914;
+}
+.current-player {
+    font-weight: bold;
+    color: #145bff !important;
+}
+.group-status {
+    margin-bottom: 10px;
+}
+h3.compact {
+    line-height: 10px;
+}

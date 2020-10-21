@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}
+Participant Dashboard
+{% endblock %}
+
+{% block page %}
+{{ block.super }}
+<div class='panel panel-default' id='experiments'>
+    <div class='panel-heading'>
+        <h3 class='panel-title'>Welcome back, {{request.user.participant}}</h3>
+    </div>
+    <div class='panel-body'>
+        <div data-bind='if: isPortOfMars'>
+            <i class='fa fa-rocket fa-2x'></i> You've successfully signed up for the Port of Mars experiment. We will
+            periodically email random groups of participants to sign up for registered sessions for the duration of the
+            experiment. Thanks in advance for participating!
+        </div>
+        <div data-bind='ifnot: isPortOfMars'>
+            <div data-bind='ifnot: hasUpcomingEvents'>
+                <div class='alert alert-warning alert-block'>
+                    You're not signed up for any other experiments at the moment. We periodically invite random groups of
+                    participants to participate in experiments. Please check again later or 
+                    <a href='/contact'>contact us</a> if you have any questions.
+                </div>
+            </div>
+        </div>
+        <div data-bind='if: pendingExperiments().length > 0'>
+            <h3>Upcoming experiments</h3>
+            <div data-bind="template: { name: 'experimentTemplate', foreach: pendingExperiments }"></div>
+        </div>
+        <div data-bind='if: runningExperiments().length > 0'>
+            <h3>Running experiments</h3>
+            <div data-bind="template: { name: 'experimentTemplate', foreach: runningExperiments }"></div>
+        </div>
+        <div data-bind='if: signups().length > 0'>
+            <h4>You're currently registered or waitlisted for the following experiments:</h4>
+            <table class='table table-bordered table-striped'>
+                <thead>
+                    <tr>
+                        <th>Status</th>
+                        <th>Start Date</th>
+                        <th>Start Time</th>
+                        <!-- ko if: showEndDates -->
+                        <th>End Date</th>
+                        <!-- /ko -->
+                        <th>End Time</th>
+                        <th>Location</th>
+                        <th>Update</th>
+                    </tr>
+                </thead>
+                <tbody data-bind='foreach: signups'>
+                <tr>
+                    <td data-bind='text: attendance'></td>
+                    <td>
+                        <span data-bind='text: $root.formatDate(invitation.scheduled_date())'></span>
+                        <br>
+                        <a target='_blank' rel='nofollow'
+                            data-bind='attr: { href: $root.addToGoogleCalendarLink(invitation.iso_start_date(),  invitation.iso_end_date(), invitation.location()) }'>
+                            Add to Google Calendar
+                        </a>
+                    </td>
+                    <td data-bind='text: invitation.scheduled_time'></td>
+                    <!-- ko if: $root.showEndDates -->
+                    <td data-bind='text: invitation.scheduled_end_date'></td>
+                    <!-- /ko -->
+                    <td data-bind='text: invitation.scheduled_end_time'></td>
+                    <td data-bind='text: invitation.location'></td>
+                    <td>
+                        <div class='btn-group-vertical' role='group'>
+                            <a class='btn btn-primary' href='{% url "subjectpool:experiment_session_signup" %}'>Edit</a>
+                            <form method='POST' action='/subject-pool/signup/cancel/'>
+                                {% csrf_token %}
+                                <input type='hidden' name='pk' id='id_pk' data-bind='value: pk'>
+                                <button type='submit' class='btn btn-warning'>Cancel</button>
+                            </form>
+                        </div>
+                    </td>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock page %}
+
+{%  block javascript %}
+{{ block.super }}
+<script type='text/javascript' src='//cdnjs.cloudflare.com/ajax/libs/moment.js/2.9.0/moment.min.js'></script>
+<script type='text/javascript' src='{{STATIC_URL}}/js/bootbox.min.js'></script>
+<script type='text/html' id='experimentTemplate'>
+<div class='alert alert-warning alert-block'>
+    <a data-bind='attr: { href: participant_url }'><i class='fa fa-play'></i> <span data-bind='text: name'></span>
+    <span data-bind='if: start_date'>
+    <span class='pull-right'><b>Experiment starts on <span data-bind='text: $root.formatDate(start_date())'></span></b> at midnight</i></span>
+    </span>
+    </a>
+</div>
+</script>
+<script type='text/javascript'>
+$(function() {
+    function DashboardViewModel(viewModelObject) {
+        var self = this;
+        var model = ko.mapping.fromJS(viewModelObject);
+        model.formatDate = function(dateString) { return moment(dateString).format("dddd MMM Do YYYY"); };
+        model.addToGoogleCalendarLink = function(startDate, endDate, location) {
+            return "https://www.google.com/calendar/render?action=TEMPLATE&text=vcweb+experiment"
+            + "&dates=" + startDate.replace(/[-:.]/g, '') + '/' + endDate.replace(/[-:.]/g, '')
+            + "&details=For more details please visit https://vcweb.asu.edu or contact your experimenter"
+            + "&location=" + location
+            + "&ctz=America/Phoenix"
+            + "&sf=true"
+            + "&output=xml";
+        };
+        model.hasUpcomingEvents = ko.computed(function() {
+            return model.pendingExperiments().length > 0 || model.runningExperiments().length > 0
+                || model.signups().length > 0;
+        });
+        return model;
+    }
+    var viewModel = new DashboardViewModel($.parseJSON("{{ dashboardViewModelJson|escapejs }}"));
+    ko.applyBindings(viewModel);
+});
+</script>
+{%  endblock javascript %}

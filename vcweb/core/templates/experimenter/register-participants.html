@@ -1,0 +1,29 @@
+{% extends "forms/base.html" %}
+
+{% block head %}
+{{ block.super }}
+{% endblock head %}
+
+{% block title %}Register participants{% endblock %}
+{% block form %}
+    {% block participant_registration_header %}
+    <h3>#{{experiment.pk}} {{ experiment.experiment_configuration }}</h3>
+    {% endblock %}
+    {% include "includes/bootstrap-form.html" %}
+    <div class="form-group">
+        <div class="col-md-offset-2 col-md-10">
+            <button class='btn btn-primary' type='submit'>Register participants</button>
+            <a class="btn btn-default " href='/dashboard'>Cancel</a>
+        </div>
+    </div>
+{% endblock form %}
+{% block javascript %}
+{{ block.super }}
+{% include "includes/bootstrap-datetimepicker.html" %}
+<script type='text/javascript'>
+    $(function() {
+        $('#vcweb-form').validate();
+        $('#id_start_date').datetimepicker({ minDate: moment(), format: 'MM/DD/YYYY'});
+    });
+</script>
+{% endblock %}

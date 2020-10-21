@@ -1,0 +1,42 @@
+<script type="text/javascript" src="//cdn.jsdelivr.net/sockjs/1.0.3/sockjs.min.js"></script>
+<script type="text/javascript">
+var socket;
+var DEFAULT_PORT = {{WEBSOCKET_PORT|default_if_none:8882}};
+var DEFAULT_URI = "/participant";
+function connect(uri, host, port) {
+    if ( !host ) {
+        host = window.location.hostname;
+    }
+    if ( !uri ) {
+        console.log("defaulting to " + DEFAULT_URI);
+        uri = DEFAULT_URI;
+    }
+    {% if WEBSOCKET_SSL %}
+    var sockjsServer = "https://" + host + "/websocket" + uri;
+    {% else %}
+    port = port || DEFAULT_PORT;
+    var sockjsServer = "http://" + host + ":" + port +"/websocket" + uri;
+    {% endif %}
+    console.log("Establishing connection to " + sockjsServer);
+    socket = new SockJS(sockjsServer);
+    socket.onopen = function() {
+        socket.send(createConnectionEvent());
+    };
+    socket.onmessage = function(e) {
+        console.log('default onmessage received event, you must override this method for custom websocket logic');
+        console.log(e.data);
+    };
+    socket.onclose = function() {
+        console.log('sockjs connection closed.');
+        /*
+        if (typeof Raven !== 'undefined') {
+            Raven.captureMessage('sockjs connection closed for participant {{ participant_group_relationship.pk|default:request.user }} in experiment {{ experiment.pk|default:"None" }}');
+        }
+        */
+    };
+    return socket;
+}
+function getWebSocket() {
+    return socket;
+}
+</script>

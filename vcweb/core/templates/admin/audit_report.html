@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block page %}
+<h2> Audit report for past seven days: {{from_date}} - {{to_date}}</h2><br/>
+<div class="row">
+    <div class="col-md-3">
+       <div class="panel panel-success">
+          <div class="panel-heading">
+            <h3 class="panel-title text-center" id="panel-title">Signups</h3>
+          </div>
+          <div class="panel-body">
+            <h1 class="text-center">{{signups}}</h1>
+          </div>
+        </div> 
+    </div> 
+    <div class="col-md-3">
+       <div class="panel panel-success">
+          <div class="panel-heading">
+            <h3 class="panel-title text-center" id="panel-title">Invitations Sent</h3>
+          </div>
+          <div class="panel-body">
+            <h1 class="text-center">{{invites}}</h1>
+          </div>
+        </div> 
+    </div>
+    <div class="col-md-3">
+       <div class="panel panel-success">
+          <div class="panel-heading">
+              <h3 class="panel-title text-center" id="panel-title">Experiments Archived</h3>
+          </div>
+          <div class="panel-body">
+            <h1 class="text-center">N/A</h1>
+          </div>
+        </div> 
+    </div>
+    <div class="col-md-3">
+       <div class="panel panel-success">
+          <div class="panel-heading">
+            <h3 class="panel-title text-center" id="panel-title">Experiments Run</h3>
+          </div>
+          <div class="panel-body">
+            <h1 class="text-center">N/A</h1>
+          </div>
+        </div> 
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h3 class="panel-title" id="panel-title">Invalid Users</h3>
+            </div>
+            <div class="panel-body">
+                {% if invalid_users|length > 0 %}
+                <table class="table">
+                    <thead><tr><th>User PK</th><th>Username</th><th>Email</th></thead>
+                    <tbody>
+                    {% for user in invalid_users %}
+                        <tr><td>{{user.pk}}</td><td>{{ user.username }}</td><td>{{ user.email }}</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                    All the Users are valid 
+                {% endif %}
+            </div> 
+        </div> 
+    </div>
+</div>
+<div class="row"> 
+    <div class="col-md-12">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h3 class="panel-title" id="panel-title">Participants with improper permissions</h3>
+            </div>
+            <div class="panel-body">
+                {% if participants|length > 0 %}
+                <table class="table">
+                    <thead><tr><th>Participant PK</th><th>Username</th><th>Email</th></thead>
+                    <tbody>
+                    {% for participant in participants %}
+                        <tr><td>{{ participant.pk }}</td><td>{{ participant.username }}</td><td>{{ participant.email }}</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                    All the participants have proper permissions
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h3 class="panel-title" id="panel-title">Experimenters with improper permissions</h3>
+            </div>
+            <div class="panel-body">
+                {% if experimenters|length > 0 %}
+                <table class="table">
+                    <thead><tr><th>Experimenter PK</th><th>Username</th><th>Email</th></thead>
+                    <tbody>
+                    {% for experimenter in experimenters %}
+                        <tr><td>{{ experimenter.pk }}</td><td>{{ experimenter.username }}</td><td>{{ experimenter.email }}</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                    All the experimenters have proper permissions
+                {% endif %}
+            </div> 
+        </div>
+    </div> 
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h3 class="panel-title" id="panel-title">List of Institutions with total number of participants belonging to it</h3>
+            </div>
+            <div class="panel-body">
+                {% if institution_list|length > 0 %}
+                <table class="table">
+                    <thead><tr><th>Institution PK</th><th>Institution</th><th>Participant Count</th></thead>
+                    <tbody>
+                    {% for institution in institution_list %}
+                        <tr><td>{{ institution.institution__pk }}</td><td>{{ institution.institution__name }}</td><td>{{ institution.total }}</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                    All the experimenters have proper permissions
+                {% endif %}
+            </div> 
+        </div>
+    </div> 
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h3 class="panel-title" id="panel-title">Recent User Logins</h3>
+            </div>
+            <div class="panel-body">
+                {% if recent_logins|length > 0 %}
+                <table class="table">
+                    <thead><tr><th>User PK</th><th>UserName</th><th>Date/Time</th></thead>
+                    <tbody>
+                    {% for user in recent_logins %}
+                        <tr><td>{{ user.pk }}</td><td>{{ user.username }}</td><td>{{ user.last_login }}</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                    All the experimenters have proper permissions
+                {% endif %}
+            </div> 
+        </div>
+    </div> 
+</div>
+
+{% endblock page %}

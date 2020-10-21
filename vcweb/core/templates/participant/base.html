@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load tags %}
+
+{% url 'home' as home %}
+{% url 'core:dashboard' as dashboard %}
+{% url 'core:login' as login %}
+{% url 'core:logout' as logout %}
+{% url 'core:profile' as profile %}
+
+{% block title %}
+{{ experiment.display_name }}
+{% endblock %}
+{% block logo %}
+<h1>{{experiment.display_name}}</h1>
+{% endblock %}
+{% block javascript %}
+{{ block.super }}
+{% include "includes/jquery.validate.html" %}
+{% block websockets %}
+{% include "includes/participant.events.html" %}
+{% include "includes/sockjs.html" %}
+{% endblock %}
+{% endblock %}
+

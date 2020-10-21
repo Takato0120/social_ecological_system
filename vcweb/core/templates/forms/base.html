@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block page %}
+    {% block form-title %}
+    {% endblock form-title %}
+    <form id='vcweb-form' method='post' class='form-horizontal'>
+        {% csrf_token %}
+        {% block form %}
+        {% endblock form %}
+    </form>
+{% endblock page %}
+{% block javascript %}
+    {{ block.super }}
+    {% include 'includes/jquery.validate.html' %}
+{% endblock %}
+

@@ -1,0 +1,14 @@
+version: '3'
+
+services:
+  django:
+    build:
+      context: ./
+      args:
+        DJANGO_RUNIT_SCRIPT: "./deploy/runit/dev.sh"
+    image: virtualcommons/vcweb/dev:latest
+    environment:
+      DJANGO_SETTINGS_MODULE: 'vcweb.settings.dev'
+    ports:
+      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:8882:8882"

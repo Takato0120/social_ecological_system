@@ -1,0 +1,23 @@
+<script type="text/javascript">
+function createConnectionEvent() {
+    return createMessageEvent("Initial connection", "connect");
+}
+function createMessageEvent(payload, event_type) {
+    if (! event_type) {
+        event_type = "chat";
+    }
+    return JSON.stringify({
+        event_type: event_type,
+        user_id: {{ request.user.pk }},
+        auth_token: "{{ request.user.participant.authentication_token }}",
+        email: "{{ request.user.email }}",
+        experiment_id: {{experiment.pk|default:-1}},
+        {% if group %}
+            group_id: "{{ group.pk }}",
+        {% elif participant_group_relationship %}
+            group_id: "{{ participant_group_relationship.group.pk }}",
+        {% endif %}
+        message: payload
+    });
+}
+</script>

@@ -1,0 +1,477 @@
+{% extends "experimenter/base.html" %}
+{% load bootstrap3 %}
+
+{% block page %}
+    <div id="error-messages"></div>
+    <h2> Experiment Configuration</h2>
+    <form method="post" class="form-horizontal col-md-5" data-bind="submit: $root.saveExperimentConfig">
+        {%  bootstrap_form experiment_config_form layout="horizontal" label_class="col-md-4" field_class="col-md-8" %}
+        <div class="form-group">
+            <div class="col-sm-offset-4">
+                <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+        </div>
+    </form>
+    <div class="panel-group col-md-7" id="accordion">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h4 class="panel-title">
+                    <a data-toggle="collapse" href="#collapseTwo">
+                        Experiment Parameters
+                    </a>
+                </h4>
+            </div>
+            <div id="collapseTwo" class="panel-collapse collapse in">
+                <div class="panel-body">
+                    <div data-bind='if: expParamValuesList().length == 0'>
+                        <div class="callout callout-warning">
+                            No experiment parameters found. Click the "Add Experiment Parameter" button below to add a new one.
+                        </div>
+                    </div>
+                    <div id="tree">
+                        <ul data-bind="foreach: expParamValuesList">
+                            <li>
+                                <span class="tree-item fa" data-bind="css: 'fa-square-o'"></span>
+                                <span data-bind="text: display_name"></span>
+                                <a href='#' data-bind='click: $root.editExpParam'><i class="fa fa-edit"></i></a>
+                                <a href='#' data-bind='click: $root.removeExpParam'><i class="fa fa-times"></i></a>
+                            </li>
+                        </ul>
+                    </div>
+                    <button type="button" class="btn" data-bind="click: $root.addExpParam"><i class='fa fa-plus'></i>
+                        Add Experiment Parameter
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h4 class="panel-title">
+                    <a data-toggle="collapse" href="#collapseThree">
+                        Round Configurations
+                    </a>
+                </h4>
+            </div>
+            <div id="collapseThree" class="panel-collapse collapse in">
+                <div class="panel-body">
+                    <div data-bind='if: roundConfigList().length == 0'>
+                        <div class="callout callout-warning">
+                            No rounds have been configured yet for this experiment configuration. Click the "Add Round Configuration" button below to add a new one.
+                        </div>
+                    </div>
+                    <div id="tree">
+                        <ul data-bind="foreach: roundConfigList">
+                            <li>
+                                <span class="tree-item fa" data-bind="
+                                    css: {
+                                        'fa-minus-square-o': isExpanded() && children().length > 0,
+                                        'fa-plus-square-o': !isExpanded() && children().length > 0,
+                                        'fa-square-o': children().length === 0,
+                                        'pointer-icon': children().length > 0
+                                    }, click: toggleVisibility
+                                    "></span>
+                                <span data-bind="text: display_name()"></span>
+                                <a href='#' data-bind='click: $root.addRoundParam'><i class="fa fa-plus"></i></a>
+                                <a href='#' data-bind='click: $root.editRoundConfig'><i class="fa fa-edit"></i></a>
+                                <a href='#' data-bind='click: $root.removeRoundConfig'><i class="fa fa-times"></i></a>
+                                <div data-bind="slideVisible: isExpanded">
+                                    <ul data-bind="foreach: children">
+                                        <li>
+                                            <span class="tree-item fa fa-square-o"></span>
+                                            <span data-bind="text: display_name"></span>
+                                            <a href='#' data-bind='click: $root.editRoundParam'><i class="fa fa-edit"></i></a>
+                                            <a href='#' data-bind='click: $root.removeRoundParam'><i class="fa fa-times"></i></a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                    <button type="button" class="btn" data-bind="click: $root.addRoundConfig"><i class='fa fa-plus'></i> Add Round Configuration</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" data-bind="showModal: activateModal" data-backdrop="static" data-keyboard="false">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-hidden="true" data-bind="click:hideModal">&times;</button>
+                    <h4 class="modal-title">Edit Details and Click Save</h4>
+                </div>
+                <div class="modal-body" data-bind="with: modalData" >
+                    <div data-bind='template: { name: $root.template() }'></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% endblock page %}
+{% block javascript %}
+{{ block.super }}
+    <script type='text/html' id='round-param-template'>
+        <form method="post" class="form-horizontal" data-bind="submit: $root.saveRoundParam">
+            <input type="hidden" data-bind="value: pk" class="hidden-param">
+            {%  bootstrap_form round_param_form layout="horizontal" label_class="col-md-3" field_class="col-md-6"%}
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+        </form>
+    </script>
+
+    <script type='text/html' id='exp-param-template'>
+        <form method="post" class="form-horizontal" data-bind="submit: $root.saveExpParam">
+        {%  bootstrap_form exp_param_form layout="horizontal" label_class="col-md-3" field_class="col-md-6"%}
+	    <input type="hidden" data-bind="value: pk" class="hidden-param">
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+        </form>
+    </script>
+
+    <script type="text/html" id="round-config-template">
+        <form class="form-horizontal" data-bind="submit: $root.saveRoundConfig">
+        {%  bootstrap_form round_config_form layout="horizontal" label_class="col-md-4" field_class="col-md-6"%} 
+        <input type="hidden" data-bind="value: pk" class="hidden-param">
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+        </form>
+    </script>
+
+    <script type="text/javascript">
+        var JSONdata = $.parseJSON("{{ json_data | escapejs }}");
+        var experiment_configuration_pk = {{ experiment_config.pk }}
+
+        function displayFormError(errors) {
+            var content = "";
+            for(error in errors) {
+                content += '<div class="alert alert-danger alert-dismissable alert-link"><button class=close data-dismiss=alert aria-hidden=true>&times;</button>Please enter valid '+ error +'</div>';
+            }
+            $("#error-messages").html(content);
+        }
+
+        $(function() {
+            $('.has-popover').popover({'trigger':'hover'});
+ 
+            // KO View Model for Experiment and Round Parameter
+            var ParamViewModel = function(data) {
+                var self = this;
+                var map = {'null':1, 'true': 2, 'false':3};
+                data.boolean_value = map[data.boolean_value];
+                ko.mapping.fromJS(data, {}, self);
+            }
+
+            // KO View Model for Round Configuration Accordion
+            var NodeModel = function(data) {
+                var self = this;
+                var mapping = {
+                    'children': {
+                        create: function (options) {
+                            options.data.experiment_configuration = experiment_configuration_pk;
+                            return new ParamViewModel(options.data);
+                        }
+                    }
+                };
+                data.children = data.children || [];
+ 
+                ko.mapping.fromJS(data, mapping, self);
+
+                // override sequence_number property to make it protectedObservable
+                self.sequence_number = ko.protectedObservable(data.sequence_number)
+
+                self.isExpanded = ko.observable(false);
+                self.display_name = function() {
+                   return self.repeat() > 0 ? self.name() + ' ' + self.sequence_number() +
+                       ' [x '+ self.repeat() +']': self.name() + ' ' + self.sequence_number();
+                };
+                self.toggleVisibility = function() {
+                    self.isExpanded(!self.isExpanded());
+                };
+                self.update = function(nodeObject) {
+                    // protectedObservable fields
+                    var fields = ["sequence_number"];
+
+                    $.each(fields, function(index) {
+                        var property = self[this];
+                        property(nodeObject[this]);
+                        property.commit();
+                    });
+                }
+            }
+
+            // KO View Model for whole Page
+            var PageModel = function(data) {
+                var mapping = {
+                    'roundConfigList': {
+                        create: function (options) {
+                            return new NodeModel(options.data);
+                        }
+                    },
+                    'expParamValuesList': {
+                        create: function (options) {
+                            return new ParamViewModel(options.data);
+                        }
+                    }
+                };
+                var model = ko.mapping.fromJS(data, mapping);
+                
+                var updateModal = function(action, template, data) {
+                    model.template(template);
+                    model.modalData(data);
+                    model.activateModal(action);
+                }
+
+                model.template = ko.observable();
+                model.activateModal = ko.observable(false);
+                model.modalData = ko.observable();
+
+                model.hideModal = function() {
+                    updateModal(false, "", "");
+                }
+
+                model.addExpParam = function (data, event) {
+                    var temp = new ParamViewModel({'experiment_configuration': experiment_configuration_pk ,'is_active': true, 
+                                                    'pk': null, 'parameter': null, 'string_value': null, 'boolean_value': null, 
+                                                    'float_value': null, 'int_value': null });
+                    updateModal(true, "exp-param-template", temp);
+                }
+		
+                model.editExpParam = function (expParamModel){
+                    updateModal(true, "exp-param-template", expParamModel);
+                }
+
+                model.removeExpParam = function (expParam){
+                    var data = 'experiment_configuration='+ expParam.experiment_configuration() +
+                                '&parameter='+ expParam.parameter()+
+                                '&request_type=delete';
+
+                    $.post("/api/configuration/experiment/param/" + expParam.pk(), data)
+                        .done(function(result) {
+                            if (result.success){
+                                model.expParamValuesList.remove(expParam);
+                            } else {
+                                displayFormError(result.errors);
+                            }
+                        });
+                }
+                
+                model.addRoundParam = function(roundConfig) {
+                    var temp = new ParamViewModel({'round_configuration': roundConfig.pk(), 'is_active': true, 'pk': null, 
+                                                   'parameter': null, 'string_value': null, 'boolean_value': null, 'float_value': null,
+                                                   'int_value': null });
+                    updateModal(true, "round-param-template", temp);
+                }
+
+                model.editRoundParam = function(roundParam) {
+                    updateModal(true, "round-param-template", roundParam);
+                }
+
+                model.removeRoundParam = function(roundParam) {
+                    var data = 'round_configuration='+roundParam.round_configuration() +
+                               '&parameter='+ roundParam.parameter()+
+                               '&request_type=delete';
+
+                    $.post("/api/configuration/round/param/"+ roundParam.pk(), data)
+                        .done(function(result) {
+                            if(result.success){
+                                 $.each(model.roundConfigList(), function() { this.children.remove(roundParam) })
+                            } else {
+                                displayFormError(result.errors);
+                            }
+                        });
+                }
+
+                model.addRoundConfig = function (data, event) {
+                    var node = new NodeModel({'display_number': 0, 'duration': 0, 'repeat': 0, 'group_cluster_size': 0, 
+                        'preserve_existing_groups': true, 'experiment_configuration': experiment_configuration_pk,
+                        'round_type': null, 'template_id': null, 'survey_url': null, 'chat_enabled': null, 'create_group_clusters': null,
+                        'randomize_groups': null, 'session_id': null, 'initialize_data_values': null, 'pk': null });
+                    updateModal(true, "round-config-template", node);
+                }
+
+                model.editRoundConfig = function(data) {
+                    updateModal(true, "round-config-template", data);
+                }
+ 
+                model.removeRoundConfig = function(roundConfig) {
+                    var data = 'experiment_configuration='+roundConfig.experiment_configuration() +
+                               '&repeat='+ roundConfig.repeat() + '&round_type='+ roundConfig.round_type() +
+                               '&duration='+roundConfig.duration() + '&display_number=' + roundConfig.display_number() +
+                               '&sequence_number='+ roundConfig.sequence_number() +'&request_type=delete';
+
+                    $.post("/api/configuration/round/"+ roundConfig.pk(), data)
+                        .done(function(result) {
+                            if(result.success){
+                                model.roundConfigList.remove(roundConfig);
+                            } else { 
+                                displayFormError(result.errors);
+                            }
+                        });
+                }
+                model.saveRoundParam = function(form) {
+                    var form = $(form),
+                        paramPk = parseInt(form.find("input[type='hidden'].hidden-param").val()),
+                        formData = form.serialize();
+
+                    if (paramPk) {
+                        // Update Request
+                        $.post("/api/configuration/round/param/" + paramPk, formData + '&request_type=update')
+                            .done(function(result){
+                                if(result.success){
+                                    var match = ko.utils.arrayFirst(model.roundConfigList(), function (roundConfig) {
+                                        return ko.utils.arrayFirst(roundConfig.children(), function(roundParam){
+                                            return paramPk == roundParam.pk();
+                                        });
+                                    });
+                                    match.children.remove(function(roundParam) { return roundParam.pk() == paramPk });
+                                    match.children.push(new ParamViewModel(result.round_param));
+                                } else {
+                                    // Error Message
+                                    displayFormError(result.errors);
+                                }
+                                model.hideModal();
+                            });
+                    } else {
+                        // Create Request
+                        var roundPk = parseInt($("#id_round_configuration").val());
+                        var match = ko.utils.arrayFirst(model.roundConfigList(), function (item) {
+                            return roundPk === item.pk();
+                        });
+                        $.post("/api/configuration/round/param/-1", formData + '&request_type=create')
+                            .done(function(result){
+                                if(result.success){
+                                    match.children.push(new ParamViewModel(result.round_param));
+                                } else {
+                                    // Error Message
+                                    displayFormError(result.errors);
+                                }
+                                model.hideModal();
+                            });
+                    }
+                }
+
+                model.saveRoundConfig = function(form) {
+                    var form = $(form);
+                    var roundPk = form.find("input[type='hidden'].hidden-param").val();
+                    var formData = form.serialize();
+
+                    if (roundPk) {
+                        // Update Request
+                        var match = ko.utils.arrayFirst(model.roundConfigList(), function (item) {
+                            return parseInt(roundPk) === item.pk();
+                        });
+                        $.post("/api/configuration/round/"+ roundPk, formData + '&request_type=update')
+                            .done(function(result) { 
+                                if(result.success){
+                                    var old_sequence_number = match.sequence_number();
+                                    var new_sequence_number = match.sequence_number.updateValue();
+
+                                    $.each(model.roundConfigList(), function() {
+                                        var current_sequence_number = this.sequence_number();
+                                        if( current_sequence_number > old_sequence_number && current_sequence_number <= new_sequence_number){
+                                            this.sequence_number(current_sequence_number - 1);
+                                            this.sequence_number.commit();
+                                        } else if( current_sequence_number >= new_sequence_number && current_sequence_number <= old_sequence_number){
+                                            this.sequence_number(current_sequence_number + 1);
+                                            this.sequence_number.commit();
+                                        }
+                                    });
+                                    match.update(result.round_config);
+                                    model.roundConfigList(model.roundConfigList().sort(function(left, right) {
+                                        return left.sequence_number() < right.sequence_number() ? -1 : 1
+                                    }));
+                                } else {
+                                    // Error Message
+                                    displayFormError(result.errors);
+                                }
+                                model.hideModal();
+                            });
+                    } else {
+                        // Create Request
+                        $.post("/api/configuration/round/-1", formData + '&request_type=create')
+                            .done(function(result) {
+                                if(result.success){
+                                    var flag = true;
+                                    var new_sequence_number = result.round_config.sequence_number;
+                                    $.each(model.roundConfigList(), function() {
+                                        var current_sequence_number = this.sequence_number();
+
+                                        if( current_sequence_number >= new_sequence_number && flag){
+                                            if(new_sequence_number == current_sequence_number) {
+                                                this.sequence_number(current_sequence_number + 1);
+                                                this.sequence_number.commit();
+                                                new_sequence_number++;
+                                            } else {
+                                                flag = false;
+                                            }
+                                        }
+                                    });
+                                    model.roundConfigList.push(new NodeModel(result.round_config));
+                                    model.roundConfigList(model.roundConfigList().sort(function(left, right) {
+                                        return left.sequence_number() < right.sequence_number() ? -1 : 1
+                                    }));
+                                } else {
+                                    // Error Message
+                                    displayFormError(result.errors);
+                                }
+                                model.hideModal();
+                            });
+                    }
+                }
+
+                model.saveExpParam = function(form) {
+                    var form = $(form);
+                    var paramPk = parseInt(form.find("input[type='hidden'].hidden-param").val());
+                    var formData = form.serialize();
+
+                    if (paramPk) {
+                        //Update Request
+                        var match = ko.utils.arrayFirst(model.expParamValuesList(), function (expParam) {
+                            return parseInt(paramPk) === expParam.pk();
+                        });
+                        $.post("/api/configuration/experiment/param/"+ paramPk, formData + '&request_type=update')
+                            .done(function(result){
+                                if(result.success){
+                                    match.display_name(result.experiment_param.display_name);
+                                } else {
+                                    // Error Message
+                                    displayFormError(result.errors);
+                                }
+                                model.hideModal();
+                            });
+                    } else {
+                        // Create Request
+                        $.post("/api/configuration/experiment/param/-1", formData + '&request_type=create')
+                            .done(function(result) {
+                                if(result.success){
+                                    model.expParamValuesList.push(new ParamViewModel(result.experiment_param));
+                                } else {
+                                    // Error Message
+                                    displayFormError(result.errors);
+                                }
+                                model.hideModal();
+                            });
+                    }
+                }
+
+                model.saveExperimentConfig = function(form) {
+                    var form = $(form);
+                    var formData = form.serialize();
+                    $.post("/api/configuration/experiment/" + experiment_configuration_pk , formData,
+                        function(result) {
+                            if(result.success){
+                                // Success Message
+                            } else {
+                                // Error Message
+                                displayFormError(result.errors);
+                            }
+                        });
+                }
+                return model;
+            }
+            ko.applyBindings(new PageModel(JSONdata));
+        });
+    </script>
+{% endblock javascript %}

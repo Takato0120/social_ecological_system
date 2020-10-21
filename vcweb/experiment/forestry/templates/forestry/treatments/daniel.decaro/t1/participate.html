@@ -1,0 +1,998 @@
+{% extends "participant/base.html" %}
+{% load static %}
+{% block head %}
+{{ block.super }}
+<link rel='stylesheet' href='{% static "css/forestry/style.css" %}'>
+{% endblock %}
+{% block page %}
+<div class='row' id='page'>
+    <div id='content' data-bind='css: contentGridSize'>
+        <div data-bind='template: { name: templateId, afterRender: afterRenderTemplate}'></div>
+        <div id="progress-modal" class="modal fade" role="dialog">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                         <h3>Updating experiment data</h3>
+                    </div>
+                    <div class="modal-body">
+                        <div class="progress progress-striped active">
+                            <div id="progress-bar" class="progress-bar progress-bar-info" role="progressbar" style="width: 100%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id='sidebar' class='col-md-4 filler sidebar'>
+        <div style='display:none;' data-bind='visible: ! isInstructionsRound()'>
+            <h3>Chat</h3>
+            <div data-bind='ifnot: chatEnabled'>
+                <div class='alert alert-danger'>
+                    <i class='fa fa-warning'></i> Chat is currently disabled.
+                </div>
+            </div>
+            <form id="chat-form" class='form-horizontal' data-bind='submit: submitChatMessage' >
+                <div class='input-group'>
+                    <span class='input-group-addon'><i id='chat-icon' class='text-info fa fa-comment'></i></span>
+                    <input id='chatMessage' class="form-control" type="text" placeholder="Chat with your group">
+                </div>
+            </form>
+            <div class='chat-sidebar'>
+                <div id='chat-div'>
+                    <div class='chat-messages' data-bind='foreach: chatMessages'>
+                        <i class='fa fa-user muted'></i> <strong data-bind='text: participant_number'></strong>
+                        <small><i class='fa fa-angle-double-right'></i></small> <span data-bind='text: value'></span>
+                        <br>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock page %}
+{% block javascript %}
+{{ block.super }}
+
+{# ko templates #}
+
+<script type='text/html' id='WAITING_ROOM'>
+<h2>Waiting for other participants</h2>
+<div>
+    <p>
+    Please wait quietly. The experiment will continue shortly once all the participants are ready.
+    </p>
+    <p>
+        <span class='badge' data-bind='css: { "badge-important": readyParticipants() < (participantCount() / 2), "badge-success": readyParticipants() > (participantCount() / 2)}, text: readyParticipants'></span> of <span class='badge badge-success' data-bind='text: participantCount'></span> participants are ready
+    </p>
+</div>
+<div class='progress progress-striped active'>
+    <div class='progress-bar progress-bar-success ' role="progressbar" data-bind='style: { width: readyParticipantsPercentage() + "%" }'></div>
+</div>
+</script>
+<script type='text/html' id='WELCOME'>
+<div class='hero-unit'>
+    <h2>Welcome</h2>
+    <p>
+    The experiment will begin shortly.
+    </p>
+    <p>
+    Please <strong>wait quietly and do not close this window, open any other applications, or communicate with any of
+    the other participants</strong>.
+    </p>
+    <p>
+    Please also make sure to turn off, silence, and disable vibration alerts on your cell phones and any mobile devices
+    before the experiment begins.
+    </p>
+</div>
+</script>
+<script type='text/html' id='GENERAL_INSTRUCTIONS'>
+<div class='general-instructions'>
+    <h2>General Instructions</h2>
+    <p>
+        Welcome. Please read the following instructions carefully.
+    </p>
+    <h3>The Forest Task</h3>
+    <p>
+        For this experiment, you will be in a forest that will be presented on the
+        computer, and your task will be to decide how you want to harvest trees from
+        the forest. As described below, the decisions you make will determine your
+        payment.
+    </p>
+    <h3>Your Earnings</h4>
+    <p>
+        In the beginning, the forest will have a total of <span data-bind='text:initialResourceLevel'></span>
+        trees. You will be in the forest for several rounds, which represent &quot;years&quot;. Every year, you can
+        harvest up to <span data-bind='text:maxHarvestDecision'></span> trees, as long as there are enough trees
+        remaining in the forest. You will earn <mark data-bind='text: formatCurrency(parseFloat(dollarsPerTree()))'></mark> for every tree that you harvest. The total number
+        of trees you harvest today will determine your final payment.
+    </p>
+    <p>
+    You can earn up to a maximum of about <mark>$8 to $18</mark>, depending on
+    how many trees you harvest during the experiment.
+    </p>
+    <h3>Harvesting Trees</h4>
+    <h4>Maximum Possible Harvest</h4>
+    <p>
+    When we begin the forest task, you will be able to select a certain number of trees to harvest each year. The specific
+    amount of trees you can harvest in a particular year depends on how many mature trees there are in the forest at the
+    time. In the beginning, there are <span data-bind='text: initialResourceLevel'></span> trees, so you can harvest
+    anywhere from 0 to <span data-bind='text:maxHarvestDecision'></span> trees, depending on what you want to harvest.
+    You can harvest up to <span data-bind='text:maxHarvestDecision'></span> trees as long as there are at least 40 trees
+    in the forest. You can no longer harvest trees when there are 7 trees or less in the forest, because all usable
+    timber will have been taken already.
+    </p>
+    <p>
+    You can look at the table below to see the maximum number of trees you can harvest in a year, depending on the
+    current size of the forest. There is also a copy of this table at your station.
+    </p>
+    <h4>Maximum Possible Harvest Depending On Forest Size</h4>
+    <table class='table table-bordered table-condensed'>
+        <thead>
+          <tr>
+            <th>Current size of forest</th>
+            <th>Your Maximum Possible Harvest</th>
+          </tr>
+        </thead>
+        <tbody>
+            <tr class='harvest-10'><td>40 to 100 trees</td><td>0 to 10</td></tr>
+            <tr class='harvest-8'><td>32 to 39 trees</td><td>0 to 8</td></tr>
+            <tr class='harvest-6'><td>24 to 31 trees</td><td>0 to 6</td></tr>
+            <tr class='harvest-4'><td>16 to 23 trees</td><td>0 to 4</td></tr>
+            <tr class='harvest-2'><td>8 to 15 trees</td><td>0 to 2</td></tr>
+            <tr class='harvest-0'><td>0 to 7 trees</td><td>0</td></tr>
+        </tbody>
+    </table>
+    <h4>Tree Growth</h4>
+    <p>
+    Like a real forest, the total number of trees in the forest will increase or decrease depending on the number of
+    trees that were harvested in previous years. The forest can never be larger than <span data-bind='text:
+    initialResourceLevel'></span> trees. However, after some trees are harvested, new trees will grow after each year at
+    a rate of 2 trees for every 10 trees that remain in the forest. For example, if there are a total of 10 trees in the
+    forest at the end of a year, then 2 new trees will grow, and there will be 12 trees in the forest next year. If the
+    forest reaches a size of 9 trees or less, there are not enough mature trees to reproduce and no more new trees will
+    grow.
+    </p>
+    <p>
+    The table below shows how many trees will grow, depending on the size of the forest. There is also a copy of this
+    table at your station.
+    </p>
+    <h4>Forest Growth Rate</h4>
+    <table class='table table-bordered table-condensed'>
+        <thead>
+          <tr>
+            <th>Current size of forest</th>
+            <th>New trees that will grow</th>
+            <th>Size of forest next round</th>
+          </tr>
+        </thead>
+        <tbody>
+            <tr><td>100 trees</td><td>0</td><td>100</td></tr>
+            <tr><td>90 to 99 trees</td><td>18</td><td>100</td></tr>
+            <tr><td>80 to 89 trees</td><td>16</td><td>96 to 100</td></tr>
+            <tr><td>70 to 79 trees</td><td>14</td><td>84 to 93</td></tr>
+            <tr><td>60 to 69 trees</td><td>12</td><td>72 to 81</td></tr>
+            <tr><td>50 to 59 trees</td><td>10</td><td>60 to 69</td></tr>
+            <tr><td>40 to 49 trees</td><td>8</td><td>48 to 57</td></tr>
+            <tr><td>30 to 39 trees</td><td>6</td><td>36 to 45</td></tr>
+            <tr><td>20 to 29 trees</td><td>4</td><td>24 to 33</td></tr>
+            <tr><td>10 to 19 trees</td><td>2</td><td>12 to 21</td></tr>
+            <tr><td>0 to 9 trees</td><td>0</td><td>0 to 9</td></tr>
+        </tbody>
+    </table>
+    <h3>Groups</h3>
+    <p>
+    You have been randomly assigned to a group with <span data-bind='text: participantsPerGroup() - 1'></span> other
+    participants. All <span data-bind='text: participantsPerGroup()'></span> members of your group will be able to
+    access the forest and harvest trees from it. You will stay in the same group for the entire experiment.
+    </p>
+    <h4>Group Members are Anonymous</h4>
+    <p>
+    The computer has randomly assigned each person in your group a number from 1 to 4. This will be the only way the
+    members of your group will be identified to you. Because group membership was randomly assigned by the computer,
+    <b>neither you, nor the experimenter, will be able to identify which person in the experiment has been assigned to a
+    particular group, or number, within a group.</b> Your anonymity is guaranteed.
+    </p>
+    <h4>Group Members are in the Forest</h4>
+    <p>
+    Group members have access to the forest, and can harvest trees from it each year, just like you. Thus,
+    every year, you and every other person in your group, will have the opportunity to harvest as few or many 
+    trees as they want, within the maximum possible harvest. For example, during the first year, each person 
+    can harvest anywhere from 0 to 10 trees, for a total of 0 to 40 trees harvested. <strong>Each person’s harvests 
+    affect the total size of the forest. Therefore, the amount of money you earn depends on your 
+    decisions, as well as the decisions of your group members during the experiment.</strong>
+    </p>
+    <h4>Practice Rounds</h4>
+    <p>
+    We will do some practice rounds first, so that you can become familiar with the forest task environment and
+    understand how to harvest trees.
+    </p>
+    <p>
+    <b>Do you have any questions so far?</b> If you have any questions at this time, please let the experimenter know,
+    and they will come to your computer station to answer it.
+    </p>
+    <ul class='pager'>
+        <li class='next'>
+            <a href='javascript: void(0);' data-bind='click: activateTemplate.bind($data, "PRACTICE_ROUND_INSTRUCTIONS")'>OK, Continue to practice rounds</a>
+        </li>
+    </ul>
+</div>
+</script>
+<script type='text/html' id='PRACTICE_ROUND_INSTRUCTIONS'>
+<h3>Practice Round Instructions</h3>
+<p>
+    During each practice round (year), you have unlimited time to indicate how many trees you want to harvest, so that
+    you can get used to the controls and become familiar with the information being displayed. During practice, the
+    trees you harvest <em>do not count towards your earnings, and they will not affect the other group members</em>.
+    During the actual experiment, you will have <span data-bind='text:nextRoundDuration'></span> seconds each round to
+    indicate how many trees you wish to harvest, and the trees you harvest will count towards your earnings.
+</p>
+<h4>Selecting Trees for Harvest</h4>
+<p>
+The forest will be displayed in the middle of the screen each year, with a summary of how many trees are
+currently in the forest. At the bottom of the screen, you will see a row of trees numbered from 0 to
+<span data-bind='text:maxHarvestDecision'></span>.
+These trees represent your harvest options. For example, if you want to harvest <span
+data-bind='text:maxHarvestDecision'></span> trees (your maximum harvest), select the tree labeled &quot;<span
+data-bind='text:maxHarvestDecision'></span>&quot;. If you want to harvest 0 trees (your minimum harvest), select the
+tree labeled “0.” You can harvest any amount of trees from 0 to 10, by selecting the corresponding number of trees. If
+you do not select a number of trees within the time allotted, you will be marked as having selected 0 trees to harvest.
+</p>
+<p>
+    There are two ways to enter your selection:
+</p>
+<ol>
+    <li>Select the number of trees you want to harvest and then click &quot;Ok, I'm ready&quot;. You can 
+    change your selection as many times as you want before clicking, &quot;Ok, I'm ready&quot;
+    </li>
+    <li>Make your selection and then wait the end of the round. The amount you have chosen will be automatically
+    submitted. A countdown will alert you when there are 10 seconds left. If you do not select a harvest value, a
+    default value of 0 will automatically be selected.
+</ol>
+<p class='example-harvest-screen'>
+<img src='{% static "images/forestry/harvest-example-screenshot.png" %}' class='figure-img img-fluid img-thumbnail'>
+<figcaption class='figure-caption'><em>Harvest example screenshot</em></figcaption>
+</p>
+<p>
+<strong>We will practice next</strong>. Use this opportunity to familiarize yourself with the information displayed, and
+then decide how many trees you would like to harvest. If you have any questions, please let the experimenter know.
+</p>
+
+<ul class='pager'>
+    <li class='previous'>
+        <a href='javascript:void(0);' data-bind='click: activateTemplate.bind($data, "GENERAL_INSTRUCTIONS")'>Back</a>
+    </li>
+    <li class='next'>
+        <a href='javascript: void(0);' data-bind='click: participantReady.bind($data, participantGroupId() + " finished practice round instructions")'>I have fully read and understand these instructions</a>
+    </li>
+</ul>
+</script>
+<script type='text/html' id='PRACTICE_ROUND_RESULTS'>
+    <h3>Practice Round Results</h3>
+    <p>
+        You harvested a total of <span data-bind='text: totalHarvest'></span> trees. If this had been been a paid
+        session, you would have earned <strong class='text-success' data-bind='text: $root.formattedTotalEarnings'></strong>.
+    </p>
+    <p>
+        We will now move on to the <strong>paid rounds.</strong>
+    </p>
+    <ul class='pager'>
+        <li class='next'>
+           <a href="javascript: void(0)" data-bind='click: activateTemplate.bind($data, "INSTRUCTIONS")'>Ok, continue</a>
+        </li>
+    </ul>
+</script>
+<script type='text/html' id='INSTRUCTIONS'>
+<h3>Round 1 Instructions</h3>
+<p>
+<strong>The first round (Year 1) of the experiment will begin in a moment.</strong> You will have <strong><span
+data-bind='text: roundDuration'></span> seconds</strong> to indicate how many trees you would like to harvest. The
+forest has <span data-bind='text: initialResourceLevel'></span> trees in it. <strong>Every member of your group will be
+able to access and harvest trees from the same forest from this point forward, and each tree you harvest will now count
+towards your total payment.</strong> The number of trees each person harvests and their associated earnings will be
+displayed at the end of each round. You will stay in the same group for the rest of the experiment.
+</p>
+<p>
+You can look at the &quot;Maximum Possible Harvest&quot; and &quot;Forest Regrowth Rate&quot; Tables at your station to
+see how many trees can be harvested (depending on the size of the forest) and how quickly the forest will regrow based
+on the number of trees left in the forest.
+</p>
+<p>
+<strong>Do you have any questions?</strong>
+</p>
+<p>
+Please raise your hand if you have a question, and the experimenter will come to your station and answer it.
+</p>
+<ul class='pager'>
+    <li class='previous'>
+    <a href='javascript: void(0)' data-bind='click: activateTemplate.bind($data, "PRACTICE_ROUND_RESULTS")'>Back</a>
+    </li>
+    <li class='next'>
+    <a href='javascript: void(0)' data-bind='click: participantReady.bind($data, participantGroupId() + " finished paid experiment instructions") '>Ok, I understand</a>
+    </li>
+</ul>
+</script>
+<script type='text/html' id='REGULAR'>
+<div class='row'>
+    <div class='col-md-5'>
+        <h3>My Status</h3>
+    </div>
+    <div class='col-md-7'>
+        <h3>Group Status</h3>
+    </div>
+</div>
+<div class='row'>
+    <div class='col-md-2'>
+        <div class='alert alert-warning forestry-status-dashboard'>
+            <h4 id="dashboard-last-harvest">Last Harvest</h4>
+            <p><span class='text-success' data-bind='text:lastHarvestDecision'></span></strong></p>
+        </div>
+    </div>
+    <div class='col-md-2'>
+        <div class='alert alert-warning forestry-status-dashboard'>
+            <h4 id='dashboard-time'><i class='fa fa-clock-o' data-toggle='popover' data-content="Seconds left before this round ends."></i> Time</h4>
+            <p>
+            <strong data-bind='css: { "text-error": secondsLeft() < warningCountdownTime(), "text-info": secondsLeft() > warningCountdownTime()}'>
+                <span data-bind='html: secondsLeft'></span>
+            </strong>
+            </p>
+        </div>
+    </div>
+    <div class='col-md-1'>
+    </div>
+    <div class='col-md-7'>
+        <table class='table table-bordered table-condensed group-status'>
+            <thead>
+                <tr><th>Player</th><th>Last harvest</th><th>Total harvest</th><th>Total earnings</th>
+                </tr>
+            </thead>
+            <tbody data-bind='foreach: groupData'>
+            <tr data-bind='css: { "current-player bg-info": id() === $root.participantGroupId() }'>
+                <td data-bind='text: number'></td>
+                <td data-bind='text: lastHarvestDecision'></td>
+                <td data-bind='text: totalHarvest'></td>
+                <td data-bind='text: formatCurrency(parseFloat(totalEarnings()))'></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% comment %} resource visualization section {% endcomment %}
+<div data-bind='template: { name: "resource-visualization-template" }'></div>
+{% comment %} resource harvest decision section {% endcomment %}
+<div data-bind='ifnot: isResourceEmpty'>
+    <h3>Harvest</h3>
+    <form id='vcweb-form' method='post' class='form-horizontal' >
+        {% csrf_token %}
+        <div id='harvestDecisionDiv' class='control-group'>
+            <div data-bind='template: { name: "harvest-decision-multiselect-template" }'></div>
+        </div>
+    </form>
+</div>
+</script>
+<script type='text/html' id='resource-visualization-template'>
+<div data-bind='if: isPracticeRound'>
+    <div class='alert alert-danger'>
+        <h4>PRACTICE ROUND</h4>
+        This is a practice round.  The decisions you make in this round will <b>NOT</b> contribute to your earnings.
+    </div>
+</div>
+<div class='row'>
+    <div class='col-md-12'>
+        <h3 class='compact'>My Group</h3>
+        <div data-bind='template: { name: "tree-template", data: myGroup }'></div>
+    </div>
+</div>
+</script>
+<script type='text/html' id='PHASE_ONE_BLOCK_ONE_RESULTS'>
+<h3>A New Forest</h3>
+<p>
+Please read the following instructions carefully!
+</p>
+<p>
+<strong>We are about to begin another six years of the forest task in a new forest.</strong> Like before, the
+<strong>forest will have <span data-bind='text: initialResourceLevel'></span> trees</strong>, and every member in your
+group will be able to harvest trees from it. Each tree you harvest will count towards your total payment. The forest
+will continue to regrow at the rate of 2 trees for every 10 trees left standing in the forest (see the Forest Regrowth
+Rate table), and the maximum possible harvest will be the same rate as before (see the Maximum Possible Harvest table).
+</p>
+<p>
+<strong>Do you have any questions?</strong>
+</p>
+<p>
+Raise your hand if you have a question, and the experimenter will come over to your station and answer it.
+</p>
+<ul class='pager'>
+    <li class='next'>
+    <a href='javascript: void(0)' data-bind='click: participantReady.bind($data, participantGroupId() + " finished phase one block two instructions") '>Ok, I understand</a>
+    </li>
+</ul>
+
+</script>
+<script type='text/html' id='PHASE_TWO_INSTRUCTIONS'>
+<div data-bind='ifnot: isSurveyCompleted'>
+    <h2>Survey</h2>
+    <p>We would like to ask you some questions before we continue to the next round.</p>
+    <div class='qualtrics-survey'>
+        <iframe width="100%" height="800" data-bind='attr: { src: surveyUrl }'>
+            Your browser doesn't appear to support iframes, please <a target='_blank' data-bind='attr: { href: surveyUrl }'>follow this link to take the survey.</a>
+        </iframe>
+    </div>
+    <p>If you have any questions, or have trouble accessing the survey, please let the experimenter know.</p>
+</div>
+<div data-bind='if: isSurveyCompleted'>
+<h3>A New Forest</h3>
+<p>
+<strong>Please read the following instructions carefully!</strong>
+</p>
+<p>
+<strong>We are about to begin another six years of the forest task in a new forest.</strong> Like before, the
+<strong>forest will have <span data-bind='text: initialResourceLevel'></span> trees</strong>, and every member in your
+group will be able to harvest trees from it. Each tree you harvest will count towards your total payment. The forest
+will continue to regrow at the rate of 2 trees for every 10 trees left standing in the forest (see the Forest Regrowth
+Rate table), and the maximum possible harvest will be the same rate as before (see the Maximum Possible Harvest table).
+</p>
+<ul class='pager'>
+    <li class='next'>
+        <a href="javascript: void(0)" data-bind='click: activateTemplate.bind($data, "PHASE_TWO_INSTRUCTIONS_GROUP_CHAT")'>Ok, continue</a>
+    </li>
+</ul>
+</div>
+</script>
+<script type='text/html' id='PHASE_TWO_INSTRUCTIONS_GROUP_CHAT'>
+<h3>Group Chat</h3>
+<p>
+<strong>From this point forward, you will be able to communicate with the members of your group.</strong> If you want to
+communicate with the people in your group, simply type your message in the &quot;Chat&quot; window located on the
+right-hand side of the screen. A text message will then be displayed to all members of your group.
+</p>
+<ul>
+<li>You will be able to chat for <span data-bind='chatDurationInMinutes'></span> minutes, before Round 1 (Year 1).
+{# FIXME: hard-coded 45 second round, nextRoundDuration will be 300 seconds and don't want to make a
+nextNextRoundDuration.. #}
+<li>You will also be able to chat during the regular 45-second round, as you select how many trees to harvest.
+</ul>
+<h4>Guidelines for Communication</h4>
+<p>
+You are free to communicate as much or little as you want, and you can discuss anything you like. However, you
+<strong>may not</strong>
+</p>
+<ol>
+<li>make physical threats
+<li>discuss side payments that would result in exchange of money outside the experiment
+</ol>
+<p>
+We will now move on to <span data-bind='text: chatDurationInMinutes'></span> minutes of communication.
+</p>
+<p>
+<strong>Do you have any questions?</strong>
+</p>
+<p>
+Raise your hand if you have a question, and the experimenter will come over to your station and answer it.
+</p>
+<ul class='pager'>
+    <li class='next'>
+    <a href='javascript: void(0)' data-bind='click: participantReady.bind($data, participantGroupId() + " finished phase two instructions") '>Ok, I understand</a>
+    </li>
+</ul>
+</script>
+
+<script type='text/html' id='COMMUNICATION'>
+<div class='row'>
+    <div class='col-md-2'>
+        <div class='alert alert-warning forestry-status-dashboard'>
+            <h4 id='dashboard-time'><i class='fa fa-clock-o' data-toggle='popover' data-content="Seconds left before this round ends."></i> Time</h4>
+            <p>
+            <strong data-bind='css: { "text-error": secondsLeft() < warningCountdownTime(), "text-info": secondsLeft() > warningCountdownTime()}'>
+                <span data-bind='html: secondsLeft'></span>
+            </strong>
+            </p>
+        </div>
+    </div>
+</div>
+<div class='row'>
+    <div class='col-md-10'>
+    You have <span data-bind='text: chatDurationInMinutes'></span> minutes to communicate with your group members.
+    </div>
+</div>
+</script>
+
+<script type='text/html' id='PHASE_TWO_BLOCK_ONE_RESULTS'>
+<h3>A New Forest</h3>
+<p>
+Please read the following instructions carefully!
+</p>
+<p>
+<strong>We are about to begin another six years of the forest task in a new forest.</strong> Like before, the
+<strong>forest will have <span data-bind='text: initialResourceLevel'></span> trees</strong>, and every member in your
+group will be able to harvest trees from it. Each tree you harvest will count towards your total payment. The forest
+will continue to regrow at the rate of 2 trees for every 10 trees left standing in the forest (see the Forest Regrowth
+Rate table), and the maximum possible harvest will be the same rate as before (see the Maximum Possible Harvest table).
+</p>
+<p>
+<strong>Do you have any questions?</strong>
+</p>
+<p>
+Raise your hand if you have a question, and the experimenter will come over to your station and answer it.
+</p>
+<h3>Group Chat</h3>
+<p>
+<strong>Like before, you will be able to communicate with the members of your group.</strong> If you want to
+communicate with the members of your group, simply type your message(s) in the &quot;Chat&quot; window.
+</p>
+<ul>
+<li>You will have <span data-bind='text: chatDurationInMinutes'></span> minutes to chat.
+{# FIXME: hardcoded 45 seconds, we need the next next round, since next round is 300 second chat round. Either that or have a ExperimentConfiguration default round duration #}
+<li>You will also be able to chat during the regular 45-second round.
+</ul>
+<p>
+We will now move on to <span data-bind='text: chatDurationInMinutes'></span> minutes of communication.
+</p>
+<ul class='pager'>
+    <li class='next'>
+    <a href='javascript: void(0)' data-bind='click: participantReady.bind($data, participantGroupId() + " finished phase two block one instructions") '>Ok, I understand</a>
+    </li>
+</ul>
+</script>
+<script type='text/html' id='PHASE_THREE_INSTRUCTIONS'>
+<div data-bind='ifnot: isSurveyCompleted'>
+    <h2>Survey</h2>
+    <p>We would like to ask you some questions before we continue to the next round.</p>
+    <div class='qualtrics-survey'>
+        <iframe width="100%" height="800" data-bind='attr: { src: surveyUrl }'>
+            Your browser doesn't appear to support iframes, please <a target='_blank' data-bind='attr: { href: surveyUrl }'>follow this link to take the survey.</a>
+        </iframe>
+    </div>
+    <p>If you have any questions, or have trouble accessing the survey, please let the experimenter know.</p>
+</div>
+<div data-bind='if: isSurveyCompleted'>
+    <h3>No Group Chat</h3>
+    <p>
+    <strong>From this point forward, you will NOT be able to communicate with your group members.</strong>
+    </p>
+    <p>
+    We will now move on to the next round of the Forest Task.
+    </p>
+    <h3>A New Forest</h3>
+    <p>
+    <strong>Please read the following instructions carefully!</strong>
+    </p>
+    <p>
+    <strong>We are about to begin another six years of the forest task in a new forest.</strong> Like before, the
+    <strong>forest will have <span data-bind='text: initialResourceLevel'></span> trees</strong>, and every member in your
+    group will be able to harvest trees from it. Each tree you harvest will count towards your total payment. The forest
+    will continue to regrow at the rate of 2 trees for every 10 trees left standing in the forest (see the Forest Regrowth
+    Rate table), and the maximum possible harvest will be the same rate as before (see the Maximum Possible Harvest table).
+    </p>
+    <ul class='pager'>
+        <li class='next'>
+        <a href='javascript: void(0)' data-bind='click: participantReady.bind($data, participantGroupId() + " finished phase three instructions") '>Ok, I understand</a>
+        </li>
+    </ul>
+</div>
+</script>
+<script type='text/html' id='PHASE_THREE_BLOCK_ONE_RESULTS'>
+<h3>A New Forest</h3>
+<p>
+<strong>Please read the following instructions carefully!</strong>
+</p>
+<p>
+<strong>We are about to begin another six years of the forest task in a new forest.</strong> Like before, the
+<strong>forest will have <span data-bind='text: initialResourceLevel'></span> trees</strong>, and every member in your
+group will be able to harvest trees from it. Each tree you harvest will count towards your total payment. The forest
+will continue to regrow at the rate of 2 trees for every 10 trees left standing in the forest (see the Forest Regrowth
+Rate table), and the maximum possible harvest will be the same rate as before (see the Maximum Possible Harvest table).
+</p>
+<ul class='pager'>
+    <li class='next'>
+    <a href='javascript: void(0)' data-bind='click: participantReady.bind($data, participantGroupId() + " finished phase three block one instructions") '>Ok, I understand</a>
+    </li>
+</ul>
+</script>
+<script type='text/html' id='FINAL_DEBRIEFING'>
+<div data-bind='ifnot: isSurveyCompleted'>
+    <h2>Survey</h2>
+    <p>The experiment is now over. Please fill out this final survey while we prepare your payments. Thank you for
+    participating.</p>
+    <div class='qualtrics-survey'>
+        <iframe width="100%" height="800" data-bind='attr: { src: surveyUrl }'>
+            Your browser doesn't appear to support iframes, please <a target='_blank' data-bind='attr: { href: surveyUrl }'>follow this link to take the survey.</a>
+        </iframe>
+    </div>
+    <p>If you have any questions, or have trouble accessing the survey, please let the experimenter know.</p>
+</div>
+<div data-bind='if: isSurveyCompleted'>
+    <h2>Experiment Concluded</h2>
+    <p>
+        Thank you for participating!
+    </p>
+    <h2>Payment</h2>
+    <p>
+        You have earned <strong class='text-success' data-bind='text: $root.formattedTotalEarnings'></strong>.
+    </p>
+    <p>
+    Members of your group earned the following:
+    </p>
+    <table class='table table-bordered table-condensed'>
+        <thead><tr><th>Participant</th><th>Total Earnings</th</tr></thead>
+        <tbody data-bind='foreach: groupEarnings'>
+            <tr>
+                <td><span class='text-success' data-bind='text: number'></span></td>
+                <td><span class='text-success' data-bind='text: formatCurrency(parseFloat(totalEarnings())'></span></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+</script>
+<script type='text/html' id='tree-template'>
+<div data-bind="visible: $data.isResourceEmpty">
+    <div class='well'>
+        <center>
+            <img alt='depleted trees' src="{% static 'images/forestry/depleted-trees.jpg' %}" class="img-responsive" width="425" height="282">
+        </center>
+    </div>
+    <div class='alert alert-danger'><i class='fa fa-warning'></i> There are no more trees to harvest. Please wait quietly until the next round begins.</div>
+</div>
+<div data-bind='ifnot: isResourceEmpty'>
+    {% comment %} resource level visualization pre-regrowth {% endcomment %}
+    <div data-bind='style: { width: $root.blockResourceVisualizationImageWidth(originalResourceLevel), height: $root.blockResourceVisualizationImageHeight(originalResourceLevel), background: $root.resourceImageBackgroundUrl }'></div>
+        <div data-bind='style: { width: $root.remainderResourceImageWidth(originalResourceLevel), height: $root.resourceImageHeightPx, background: $root.resourceImageBackgroundUrl }'></div>
+        {% comment %} regrowth resource visualization {% endcomment %}
+        <div data-bind='style: { width: $root.regrowthResourceImageWidth(regrowth), height: $root.resourceImageHeightPx, background: $root.regrowthResourceImageBackgroundUrl }'></div>
+    </div>
+    <br>
+    <table class='group-status table table-bordered table-condensed table-striped'>
+        <tbody>
+            <tr><td>forest</td><td><strong class='badge badge-success' data-bind='text:resourceLevel'></strong> trees</td></tr>
+            <tr><td>average harvest</td><td data-bind='text:averageHarvest().toFixed(1)'></td></tr>
+            <tr><td>regrowth</td><td data-bind='text:regrowth'></td></tr>
+        </tbody>
+    </table>
+</div>
+</script>
+<script type='text/html' id='harvest-decision-multiselect-template'>
+    <table>
+        <tr class='harvest-decision-resources'>
+            <!-- ko foreach: harvestDecisionOptions -->
+            <td class='harvest-decision-tree-td' data-bind='attr: { id: "harvest-decision-td-" + $data }'>
+                <form data-bind='attr: { id: $root.harvestDecisionFormId($data) }'>
+                    <input id='participantGroupId' type='hidden' name='participant_group_id' data-bind='value: $root.participantGroupId'/>
+                    <input id='harvestDecisionTextInput' type='hidden' name='integer_decision' data-bind='value: $data'>
+                    <div class='harvest-decision-tree-div' data-bind='click: $root.selectDecision.bind($root, $data)'>
+                        <div data-bind='css: { selected: $root.isSelectedHarvestDecision($data), "harvest-decision-tree": $data > 0, "zero-harvest-decision": $data === 0}'></div>
+                        <span style='margin-left: 2px;' class='badge badge-info' data-bind='text: $data'></span>
+                    </div>
+                </form>
+            </td>
+            <!-- /ko -->
+            <td style='margin-top: 15px;>
+            <button id='submitDecisionButton' data-bind='enable: submitHarvestDecisionEnabled, click: $root.submitDecision' type='submit' class='btn btn-primary submit-decision-button'>Ok, I'm ready</button>
+            </td>
+        </tr>
+    </table>
+</script>
+{% include "includes/bootstrap-tour.html" %}
+<script type="text/javascript">
+    var global;
+    $(function() {
+        function ExperimentModel(experimentModelJson) {
+            var model = ko.mapping.fromJS(experimentModelJson);
+            model.tour = ko.observable();
+            model.harvestDecisionOptions = ko.computed(function() {
+                return ko.utils.range(0, model.maxHarvestDecision());
+            });
+            model.harvestDecisionFormId = function(numberOfTrees) {
+                numberOfTrees = numberOfTrees || model.harvestDecision();
+                return "harvest-decision-form" + numberOfTrees;
+            }
+            model.secondsLeft = ko.observable(0);
+            model.currentInterval = ko.observable();
+            model.selectedHarvestDecision = ko.observable(false);
+            model.chatDurationInMinutes = ko.observable(5);
+            model.templateId = ko.computed(function() {
+                switch ( model.templateName() ) {
+                    case 'PRACTICE':
+                        return 'REGULAR';
+                    default:
+                        return model.templateName();
+                }
+            });
+            model.setupTour = function() {
+                if (! model.showTour() || model.tour()) {
+                    return;
+                }
+                console.debug("setting up tour");
+                var tour = new Tour({name: "forestry-" + {{ experiment.pk }},
+                steps: [
+                {
+                    element: "#dashboard-last-harvest", title: "Last harvest",  placement: "right",
+                    content: "Your last round's harvest decision will be displayed here.  Since this is the first practice round this is currently 0."
+                },
+                {
+                    element: "#dashboard-time", title: "Time Left", placement: "right",
+                    content: "The time remaining in this round is displayed here.  It will turn red when " + model.warningCountdownTime() + " seconds are left."
+                },
+                {
+                    element: "#chatMessage", title: "Text Chat", placement: "left",
+                    content: "When chat is enabled, you can communicate with your group by typing messages into this box and hitting the enter key."
+                },
+                {
+                    element: "#harvest-decision-td-3", title: "Harvest Decision", placement: "bottom",
+                    content: "Click on the number of trees you'd like to harvest here.  For the purposes of this practice round, please select 5 now and click the 'Ok, I'm ready' button."
+                }]});
+                tour.init();
+                model.tour(tour);
+                tour.restart();
+            }
+            model.endTour = function() {
+                var tour = model.tour();
+                if (tour) {
+                    tour.end();
+                }
+            }
+
+            model.setCurrentInterval = function(intervalId) {
+                model.clearCurrentInterval();
+                model.currentInterval(intervalId);
+            }
+            model.clearCurrentInterval = function() {
+                var currentIntervalId = model.currentInterval();
+                if (currentIntervalId) {
+                    clearInterval(currentIntervalId);
+                    model.currentInterval(undefined);
+                }
+            }
+            model.tick = function() {
+                model.secondsLeft(model.secondsLeft() - 1);
+            }
+
+            model.isTimerRunning = ko.computed(function() {
+                return model.secondsLeft() > 0;
+            });
+
+            model.activateTemplate = function(name) {
+                model.templateName(name);
+            };
+
+            model.readyParticipantsPercentage = ko.computed(function() {
+                return (model.readyParticipants() / model.participantCount()) * 100;
+            });
+
+            model.participantReady = function(message) {
+                $.post('{% url "core:participant_ready" %}', {
+                    participant_group_id: model.participantGroupId()
+                }, function(response) {
+                    model.readyParticipants(response.number_of_ready_participants);
+                    model.activateTemplate("WAITING_ROOM");
+                });
+                scrollToTop();
+            }
+
+            model.isResourceEmpty = ko.computed(function() {
+                return model.resourceLevel() == 0;
+            })
+
+            model.resourcesPerRow = ko.observable(77);
+            model.resourceImageWidth = ko.observable(10);
+            model.resourceImageHeight = ko.observable(20);
+            model.resourceImageHeightPx = ko.computed(function() {
+                return model.resourceImageHeight() + "px";
+            });
+
+            model.rowsToDisplay = function(resourceLevel) {
+                return Math.floor(resourceLevel() / model.resourcesPerRow());
+            };
+            model.individualResourcesToDisplay = ko.computed(function() {
+                return model.resourceLevel() % model.resourcesPerRow();
+            });
+            model.resourcesToDisplay = ko.computed(function() {
+                if (model.resourceLevel() > 0) {
+                    return Math.min(model.resourceLevel(), model.maximumResourcesToDisplay());
+                }
+                return 0;
+            });
+            model.resourceImageBackgroundUrl = ko.observable("url('{{STATIC_URL}}images/forestry/tree-resource-old-growth.png')");
+            model.regrowthResourceImageBackgroundUrl = ko.observable("url('{{STATIC_URL}}images/forestry/tree-resource-new-growth.png')");
+
+            model.regrowthResourceImageWidth = function(regrowth) {
+                return (model.regrowth() * model.resourceImageWidth()) + "px";
+            }
+            model.blockResourceVisualizationImageWidth = function(resourceLevel) {
+                return (model.resourcesPerRow() * model.resourceImageWidth()) + "px";
+            };
+            model.blockResourceVisualizationImageHeight = function(resourceLevel) {
+                var rowsToDisplay = model.rowsToDisplay(resourceLevel);
+                return (rowsToDisplay * model.resourceImageHeight()) + "px";
+            };
+            model.remainderResourceImageWidth = function(resourceLevel) {
+                var remainder = resourceLevel() % model.resourcesPerRow();
+                return (remainder * model.resourceImageWidth()) + "px";
+            };
+            model.startRound = function() {
+                model.initializeChat();
+                // model.setupTour();
+                console.debug("starting playable round, checking time remaining: " + model.timeRemaining());
+                if (model.timeRemaining() === -1) {
+                    model.secondsLeft("&infin;");
+                }
+                else if (model.timeRemaining() > 0) {
+                    console.debug("setting seconds left to: " + model.timeRemaining());
+
+                    model.secondsLeft(model.timeRemaining());
+                    model.setCurrentInterval(
+                        setInterval(function() {
+                            model.tick();
+                            if (! model.isTimerRunning()) {
+                                if (model.isPlayableRound()) {
+                                    model.submitDecision();
+                                }
+                                else {
+                                    model.clearCurrentInterval();
+                                    model.secondsLeft("&empty;");
+                                }
+                            }
+                        },
+                        1000));
+                }
+                else {
+                    model.secondsLeft("&empty;");
+                }
+            };
+            model.submitHarvestDecisionEnabled = ko.computed(function() {
+                return model.submitted() || model.selectedHarvestDecision();
+            });
+            model.isSelectedHarvestDecision = function(numberOfTrees) {
+                return model.submitHarvestDecisionEnabled() && (model.harvestDecision() >= numberOfTrees);
+            }
+            model.submitDecision = function() {
+                console.debug("submitting decision");
+                $.post('{% url "forestry:submit_decision" experiment.pk %}', {participant_group_id: model.participantGroupId(),integer_decision: model.harvestDecision(), submitted: true },
+                function(response) {
+                    // hide selection, disable chat, show waiting room
+                    model.participantReady(response.message);
+                    model.clearCurrentInterval();
+                    model.submitted(true);
+                    model.secondsLeft(0);
+                    model.disableChatForm();
+                    scrollToTop();
+                    console.debug("submitted harvest decision");
+                });
+            }
+            model.selectDecision = function(numberOfTrees) {
+                if (model.submitted()) {
+                    alert("You've already submitted a harvest decision this round.");
+                    return false;
+                }
+                var formId = "#" + model.harvestDecisionFormId(numberOfTrees)
+                var form = $(formId);
+                var formData = form.serialize();
+                $.post('{% url "forestry:submit_decision" experiment.pk %}', formData, function(response) {
+                    model.selectedHarvestDecision(true);
+                    model.harvestDecision(numberOfTrees);
+                });
+                return false;
+            }
+            model.submitChatMessage = function(data, evt) {
+                var message = $('#chatMessage').val();
+                if (message) {
+                    $('#chatMessage').val('');
+                        $.post('/api/experiment/{{experiment.pk|default:-1}}/chat',
+                                { participant_group_id: model.participantGroupId(), message: message },
+                            function(data) {
+                                if(!data.success) {
+                                    console.error("There was some error sending chat.")
+                                }
+                        });
+
+                    $('#chatMessage').focus();
+                }
+                return false;
+            }
+            model.update = function() {
+                $.get('view-model', { participant_group_id: model.participantGroupId() }, function(data) {
+                    ko.mapping.fromJS(data, model);
+                    $('#progress-modal').modal('hide');
+                    model.startRound();
+                });
+            }
+            model.setFormDisabled = function(formId, disabled) {
+                // disable all form inputs
+                if (formId.indexOf("#") != 0) {
+                    formId = "#" + formId;
+                }
+                $(formId + " :input").prop("disabled", disabled);
+            }
+            model.enableHarvestForm = function() {
+                $('#harvestDecisionDiv').show();
+            }
+            model.disableHarvestForm = function() {
+                $('#harvestDecisionDiv').hide();
+            }
+            model.enableChatForm = function() {
+                model.setFormDisabled("#chat-form", false);
+            }
+            model.disableChatForm = function() {
+                model.setFormDisabled("#chat-form", true);
+            }
+            model.checkSurveyCompleted = function(response) {
+                var surveyCompleted = response.survey_completed;
+                model.isSurveyCompleted(surveyCompleted);
+                if (surveyCompleted) {
+                    console.debug("SURVEY COMPLETED, REFRESHING PAGE");
+                    model.clearCurrentInterval();
+                    window.location.reload();
+                }
+            }
+            model.initializeChat = function() {
+                var chatEnabled = model.chatEnabled();
+                // FIXME: get rid of form disabling?
+                model.setFormDisabled("#chat-form", ! chatEnabled);
+                model.chatEnabled(chatEnabled);
+                if (chatEnabled) {
+                    console.debug("chat was enabled, showing sidebar explicitly");
+                    $('#sidebar').show();
+                }
+                else {
+                    $('#sidebar').hide();
+                }
+            }
+            model.contentGridSize = ko.pureComputed(function() {
+                return model.chatEnabled() ? "col-md-8" : "col-md-12";
+            });
+            model.formattedTotalEarnings = ko.pureComputed(function() {
+                return formatCurrency(parseFloat(model.totalEarnings()));
+            });
+            model.afterRenderTemplate = function(elements) {
+                // FIXME: replace with websocket push notify
+                // if survey is enabled this round and hasn't been completed yet, poll for participant completion
+                if (model.isSurveyEnabled() && ! model.isSurveyCompleted()) {
+                    switch (model.templateId()) {
+                        case "PHASE_TWO_INSTRUCTIONS":
+                        case "PHASE_THREE_INSTRUCTIONS":
+                            model.setCurrentInterval(
+                                    setInterval(function() {
+                                        $.get('/participate/{{experiment.pk}}/check-survey-completed', model.checkSurveyCompleted);
+                                    }, 6000)
+                                );
+                            // explicit fallthrough
+                        case "FINAL_DEBRIEFING":
+                            model.chatEnabled(false);
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                $('[data-content]').popover({placement: 'top', trigger: 'hover'});
+            }
+            return model;
+        }
+        var experimentModel = new ExperimentModel($.parseJSON("{{ experimentModelJson|escapejs }}"));
+        ko.applyBindings(experimentModel);
+        connect().onmessage = function(message) {
+            var data = $.parseJSON(message.data);
+            switch (data.event_type) {
+                case 'chat':
+                    experimentModel.chatMessages.unshift(data);
+                    break;
+                case 'update':
+                    $('#progress-modal').modal('show');
+                    experimentModel.update();
+                    break;
+                case 'participant_ready':
+                    $.get('/api/experiment/{{experiment.pk}}/check-ready-participants', function(response) {
+                        experimentModel.readyParticipants(response.number_of_ready_participants);
+                    });
+                    break;
+                case 'info':
+                    console.log("INFO: ");
+                    console.log(message);
+                    break;
+                default:
+                    console.debug("unhandled message:" + message);
+                    break;
+            }
+        };
+        experimentModel.startRound();
+        global=experimentModel;
+    });
+</script>
+{% endblock %}

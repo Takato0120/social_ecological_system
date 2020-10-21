@@ -1,0 +1,161 @@
+{% extends "experimenter/base.html" %}
+
+{% block page %}    
+    <div class="panel-group col-md-6">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h4 class="panel-title">
+                    <a data-toggle="collapse" href="#collapseOne">
+                        Experiment Configuration Metadata
+                    </a>
+                </h4>
+            </div>
+            <div id="collapseOne" class="panel-collapse collapse in">
+                <div class="panel-body">
+                    <table class="table table-striped">
+                        <tbody>
+                            {% for field in experiment_config_form %}
+                            <tr>
+                                <td>{{ field.label_tag }}</td>
+                                <td>{{ field.value }}</td>
+                            </tr>
+                            {% endfor %} 
+                            </tr>
+                        </tbody> 
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="panel-group col-md-6">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h4 class="panel-title">
+                    <a data-toggle="collapse" href="#collapseTwo">
+                        Experiment Parameters
+                    </a>
+                </h4>
+            </div>
+            <div id="collapseTwo" class="panel-collapse collapse in">
+                <div class="panel-body">
+                    <div data-bind='if: expParamValuesList().length == 0'>
+                        <div class="callout callout-warning">
+                            No experiment parameters found.
+                        </div>
+                    </div>
+                    <div id="tree">
+                        <ul data-bind="foreach: expParamValuesList">
+                            <li>
+                                <span class="tree-item fa" data-bind="css: 'fa-square-o'"></span>
+                                <span data-bind="text: display_name"></span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h4 class="panel-title">
+                    <a data-toggle="collapse" href="#collapseThree">
+                        Round Configurations
+                    </a>
+                </h4>
+            </div>
+            <div id="collapseThree" class="panel-collapse collapse in">
+                <div class="panel-body">
+                    <div data-bind='if: roundConfigList().length == 0'>
+                        <div class="callout callout-warning">
+                            No rounds have been configured yet for this experiment configuration.
+                        </div>
+                    </div>
+                    <div id="tree">
+                        <ul data-bind="foreach: roundConfigList">
+                            <li>
+                                <span class="tree-item fa" data-bind="
+                                    css: {
+                                        'fa-minus-square-o': isExpanded() && children().length > 0,
+                                        'fa-plus-square-o': !isExpanded() && children().length > 0,
+                                        'fa-square-o': children().length === 0,
+                                        'pointer-icon': children().length > 0
+                                    }, click: toggleVisibility
+                                    "></span>
+                                <span class="has-popover" data-bind="text: display_name(), attr: { 'data-content' : props()}" data-container="body" title="Round Configuration's properties"></span>
+                                <div data-bind="slideVisible: isExpanded">
+                                    <ul data-bind="foreach: children">
+                                        <li>
+                                            <span class="tree-item fa fa-square-o"></span>
+                                            <span data-bind="text: display_name"></span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock page %}
+{% block javascript %}
+{{ block.super }}
+<script type="text/javascript">
+    var JSONdata = $.parseJSON("{{ json_data | escapejs }}");
+
+    $(function() {
+        // KO View Model for Experiment and Round Parameter
+        var ParamViewModel = function(data) {
+            ko.mapping.fromJS(data, {}, this);
+        }
+
+        // KO View Model for Round Configuration Accordion
+        var NodeModel = function(data) {
+            var self = this;
+            var mapping = {
+                'children': {
+                    create: function (options) {
+                        return new ParamViewModel(options.data);
+                    }
+                }
+            };
+            ko.mapping.fromJS(data, mapping, self);
+
+            self.isExpanded = ko.observable(false);
+            self.display_name = function() {
+                return self.repeat() > 0 ? self.name() + ' ' + self.sequence_number() +
+                   ' [x '+ self.repeat() +']' : self.name() + ' ' + self.sequence_number();
+            };
+            self.props = function() {
+                var props = "Duration: "+ self.duration() + "<br /> Chat Enabled: " + self.chat_enabled() + "<br /> Initialize Data Values: " + self.initialize_data_values() + "<br /> Randomize Groups: " + self.randomize_groups() + "<br /> Preserve Existing Groups: " + self.preserve_existing_groups();
+                if(self.survey_url()) props += "<br /> Survey Url: "+ self.survey_url();
+                if(self.session_id()) props += "<br /> Session Id: "+ self.session_id();
+                return props;
+            }
+            self.toggleVisibility = function() {
+                self.isExpanded(!self.isExpanded());
+            };
+        }
+
+        // KO View Model for whole Page
+        var PageModel = function(data) {
+            var mapping = {
+                'roundConfigList': {
+                    create: function (options) {
+                        return new NodeModel(options.data);
+                    }
+                },
+                'expParamValuesList': {
+                    create: function (options) {
+                        return new ParamViewModel(options.data);
+                    }
+                }
+            };
+            ko.mapping.fromJS(data, mapping, self);
+        }
+
+        ko.applyBindings(new PageModel(JSONdata));
+
+        $('.has-popover').popover({'trigger':'hover', html:true});
+    });
+</script>
+{% endblock javascript %}

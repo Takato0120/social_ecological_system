@@ -1,0 +1,18 @@
+<script type="text/javascript">
+function createConnectionEvent() {
+    return createMessageEvent("Initial connection", "connect");
+}
+function createMessageEvent(message, event_type) {
+    if (! event_type) {
+        event_type = "experimenter";
+    }
+    return JSON.stringify({
+        event_type: event_type,
+        experiment_id: {{experiment.pk}},
+        user_id: {{ request.user.pk }},
+        email: "{{ request.user.email }}",
+        auth_token: "{{ request.user.experimenter.authentication_token }}",
+        message: message
+    });
+}
+</script>

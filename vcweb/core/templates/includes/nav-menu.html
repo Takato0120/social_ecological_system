@@ -1,0 +1,37 @@
+{% load tags %}
+{% load url from future %}
+
+{% url 'home' as home %}
+{% url 'about' as about %}
+{% url 'contact_form' as contact %}
+{% url 'core:login' as login %}
+{% url 'core:logout' as logout %}
+{% url 'core:register' as register %}
+{% url 'core:profile' as profile %}
+{% url 'core:dashboard' as dashboard %}
+
+<div class='navbar navbar-fixed-top'>
+    <div class='navbar-inner'>
+        <div class='container'>
+            <ul class='nav'>
+                {% block headerlinks %}
+                <li class='{{ request|active:home }}' ><a href='{{ home }}' class='first'><i class='fa fa-home'></i> Home</a></li>
+                <li class='{{ request|active_re:dashboard }}'><a href='{{ dashboard }}'><i class='fa fa-th-large'></i> Dashboard</a></li>
+                <li class='{{ request|active:contact }}'><a href='{{ contact }}'><i class='fa fa-bell-o'></i> Contact us</a></li>
+                <li><a href='https://bitbucket.org/virtualcommons/vcweb/issues'><i class='fa fa-bullhorn'></i> Report a Bug</a></li>
+                {% if request.user.is_authenticated %}
+                <li class='{{ request|active:logout }}'><a href='{{ logout }}'>Logout</a></li>
+                {% else %}
+                <li class='{{ request|active:login }}'>
+                {% if DEBUG %}
+                <a href='{{ login }}'>Login/Register</a>
+                {% else %}
+                <a href='https://{{request.get_host}}{{ login }}'>Login/Register</a>
+                {% endif %}
+                </li>
+                {% endif %}
+                {% endblock %}
+            </ul>
+        </div>
+    </div>
+</div>
